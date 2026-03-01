@@ -7,7 +7,7 @@ import { events, attendees, questions } from "@/lib/db/schema";
 import { and, eq, count, desc } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { openEvent, closeEvent } from "../actions";
+import { openEvent, closeEvent, seedTestAttendees } from "../actions";
 import { CopyButton } from "./copy-button";
 import { AutoRefresh } from "./auto-refresh";
 import { QRCodeDisplay } from "./qr-code-display";
@@ -22,6 +22,7 @@ import {
   Link2,
   Check,
   Pencil,
+  FlaskConical,
 } from "lucide-react";
 
 // ── Status config ─────────────────────────────────────────────
@@ -328,6 +329,38 @@ export default async function EventDetailPage({ params }: Props) {
             <div className="border-t pt-4">
               <QRCodeDisplay url={`${origin}/e/${id}`} />
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Dev seed panel ─────────────────────────────────────── */}
+      {process.env.NODE_ENV === "development" && event.status === "open" && (
+        <Card className="border-dashed border-amber-300 bg-amber-50/40">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                <FlaskConical className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-semibold text-amber-800">Seed test attendees</CardTitle>
+                <CardDescription className="text-xs">Dev only — generates fake attendees with random responses.</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <form action={seedTestAttendees.bind(null, id)} className="flex items-center gap-3">
+              <input
+                type="number"
+                name="count"
+                min={1}
+                max={50}
+                defaultValue={10}
+                className="w-20 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+              <Button type="submit" size="sm" variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-100">
+                Seed attendees
+              </Button>
+            </form>
           </CardContent>
         </Card>
       )}

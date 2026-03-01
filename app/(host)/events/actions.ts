@@ -1,9 +1,11 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
-import { events } from "@/lib/db/schema";
+import { events, questions, attendees, responses } from "@/lib/db/schema";
 import { createEventSchema, updateEventSchema } from "@/lib/validators/event";
 import { eq, and } from "drizzle-orm";
 
@@ -86,5 +88,72 @@ export async function closeEvent(eventId: string) {
     .set({ status: "closed", updatedAt: new Date() })
     .where(and(eq(events.id, eventId), eq(events.hostId, user.id)));
 
+  redirect(`/events/${eventId}`);
+}
+
+const SEED_NAMES = [
+  ["Alice", "Morgan"], ["Bob", "Chen"], ["Carol", "Rivera"], ["David", "Kim"],
+  ["Eva", "Patel"], ["Frank", "Osei"], ["Grace", "Tanaka"], ["Henry", "Müller"],
+  ["Iris", "Santos"], ["Jack", "Novak"], ["Karen", "Ali"], ["Leo", "Petrov"],
+  ["Maya", "Lindqvist"], ["Noah", "Okonkwo"], ["Olivia", "Reyes"], ["Paul", "Zhang"],
+  ["Quinn", "Ferreira"], ["Rosa", "Björk"], ["Sam", "Nakamura"], ["Tara", "Wallace"],
+];
+
+export async function seedTestAttendees(eventId: string, formData: FormData) {
+  if (process.env.NODE_ENV !== "development") throw new Error("Dev only");
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const count = Math.min(50, Math.max(1, Number(formData.get("count") ?? 10)));
+
+  // Owner check
+  const [event] = await db
+    .select({ id: events.id })
+    .from(events)
+    .where(and(eq(events.id, eventId), eq(events.hostId, user.id)));
+  if (!event) redirect("/dashboard");
+
+  const eventQuestions = await db
+    .select()
+    .from(questions)
+    .where(eq(questions.eventId, eventId));
+
+  const ts = Date.now().toString().slice(-6);
+  const newAttendees = Array.from({ length: count }, (_, i) => {
+    const [first, last] = SEED_NAMES[i % SEED_NAMES.length];
+    return {
+      eventId,
+      name: `${first} ${last}`,
+      phone: `+1555${ts}${String(i).padStart(2, "0")}`,
+      token: randomUUID(),
+    };
+  });
+
+  const inserted = await db.insert(attendees).values(newAttendees).returning({ id: attendees.id });
+
+  if (eventQuestions.length > 0) {
+    const allResponses = inserted.flatMap(({ id: attendeeId }) =>
+      eventQuestions.map((q) => {
+        let value: string | string[] | number;
+        if (q.type === "single_choice" && q.options?.length) {
+          value = q.options[Math.floor(Math.random() * q.options.length)];
+        } else if (q.type === "multiple_choice" && q.options?.length) {
+          const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+          value = shuffled.slice(0, Math.ceil(Math.random() * q.options.length));
+        } else {
+          // scale
+          const min = q.scaleMin ?? 1;
+          const max = q.scaleMax ?? 10;
+          value = Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        return { attendeeId, questionId: q.id, value };
+      })
+    );
+    await db.insert(responses).values(allResponses);
+  }
+
+  revalidatePath(`/events/${eventId}`);
   redirect(`/events/${eventId}`);
 }
