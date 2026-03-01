@@ -6,37 +6,100 @@ import { db } from "@/lib/db";
 import { events, attendees, questions } from "@/lib/db/schema";
 import { and, eq, count, desc } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { openEvent, closeEvent } from "../actions";
 import { CopyButton } from "./copy-button";
 import { AutoRefresh } from "./auto-refresh";
 import { formatDateTime } from "@/lib/format";
+import {
+  ArrowLeft,
+  Calendar,
+  MapPin,
+  Users,
+  MessageSquare,
+  Zap,
+  Link2,
+  Check,
+} from "lucide-react";
+
+// ── Status config ─────────────────────────────────────────────
 
 const STATUS_STEPS = ["draft", "open", "closed", "matched", "delivered"] as const;
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  open: "Open",
-  closed: "Closed",
-  matched: "Matched",
-  delivered: "Delivered",
+
+const STATUS_META: Record<string, {
+  label: string;
+  hint: string;
+  badgeBg: string;
+  dot: string;
+  stepActive: string;
+}> = {
+  draft: {
+    label: "Draft",
+    hint: "Add at least 3 questions, then open the event.",
+    badgeBg: "bg-slate-100 text-slate-600",
+    dot: "bg-slate-400",
+    stepActive: "bg-slate-700 border-slate-700 ring-slate-200",
+  },
+  open: {
+    label: "Open",
+    hint: "Collecting responses. Share the attendee link.",
+    badgeBg: "bg-emerald-50 text-emerald-700",
+    dot: "bg-emerald-500 animate-pulse",
+    stepActive: "bg-emerald-500 border-emerald-500 ring-emerald-200",
+  },
+  closed: {
+    label: "Closed",
+    hint: "Responses closed. Ready to run matching.",
+    badgeBg: "bg-blue-50 text-blue-700",
+    dot: "bg-blue-500",
+    stepActive: "bg-blue-500 border-blue-500 ring-blue-200",
+  },
+  matched: {
+    label: "Matched",
+    hint: "Matches generated. Deliver results to attendees.",
+    badgeBg: "bg-violet-50 text-violet-700",
+    dot: "bg-violet-500",
+    stepActive: "bg-violet-500 border-violet-500 ring-violet-200",
+  },
+  delivered: {
+    label: "Delivered",
+    hint: "All done — matches sent to attendees.",
+    badgeBg: "bg-teal-50 text-teal-700",
+    dot: "bg-teal-500",
+    stepActive: "bg-teal-500 border-teal-500 ring-teal-200",
+  },
 };
-const STATUS_DESCRIPTIONS: Record<string, string> = {
-  draft: "Add questions and open the event when ready.",
-  open: "Collecting responses. Share the link with attendees.",
-  closed: "Responses closed. Ready to run matching.",
-  matched: "Matches generated. Review and deliver to attendees.",
-  delivered: "Matches sent to attendees via SMS.",
-};
+
+// ── Avatar colors (deterministic by name) ─────────────────────
+
+const AVATAR_COLORS = [
+  "bg-violet-100 text-violet-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-sky-100 text-sky-700",
+  "bg-amber-100 text-amber-700",
+  "bg-rose-100 text-rose-700",
+  "bg-orange-100 text-orange-700",
+  "bg-indigo-100 text-indigo-700",
+  "bg-teal-100 text-teal-700",
+];
+
+function avatarColor(name: string) {
+  let h = 0;
+  for (const c of name) h += c.charCodeAt(0);
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
 
 function timeAgo(date: Date): string {
   const diff = Date.now() - date.getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 }
+
+// ── Page ──────────────────────────────────────────────────────
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -72,133 +135,185 @@ export default async function EventDetailPage({ params }: Props) {
 
   const attendeeCount = attendeeList.length;
   const isLive = event.status === "open";
-  const attendeeLink = `${origin}/e/${id}`;
   const currentStep = STATUS_STEPS.indexOf(event.status as typeof STATUS_STEPS[number]);
+  const meta = STATUS_META[event.status];
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-5">
       {isLive && <AutoRefresh intervalMs={20000} />}
 
-      {/* Back link */}
+      {/* Back */}
       <Link
         href="/dashboard"
-        className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-block"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        ← Dashboard
+        <ArrowLeft className="w-3.5 h-3.5" />
+        Events
       </Link>
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1 min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight truncate">{event.name}</h1>
-          {event.date && (
-            <p className="text-sm text-muted-foreground">{formatDateTime(event.date)}{event.location ? ` · ${event.location}` : ""}</p>
-          )}
-        </div>
-
-        <div className="flex gap-2 shrink-0">
-          {event.status === "draft" && (
-            <form action={openEvent.bind(null, id)}>
-              <Button type="submit" disabled={questionCount < 3}>
-                Open event
-              </Button>
-            </form>
-          )}
-          {event.status === "open" && (
-            <form action={closeEvent.bind(null, id)}>
-              <Button type="submit" variant="secondary">
-                Close responses
-              </Button>
-            </form>
-          )}
-          {event.status === "closed" && (
-            <Button asChild>
-              <Link href={`/events/${id}/match`}>Run matching →</Link>
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Status stepper */}
-      <div className="rounded-lg border bg-card p-4">
-        <div className="flex items-center gap-0">
-          {STATUS_STEPS.map((step, i) => {
-            const done = i < currentStep;
-            const active = i === currentStep;
-            const isLast = i === STATUS_STEPS.length - 1;
-            return (
-              <div key={step} className="flex items-center flex-1 min-w-0">
-                <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-                  <div
-                    className={[
-                      "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-                      done ? "bg-primary text-primary-foreground" : "",
-                      active ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2" : "",
-                      !done && !active ? "bg-muted text-muted-foreground" : "",
-                    ].join(" ")}
-                  >
-                    {done ? "✓" : i + 1}
-                  </div>
-                  <span className={`text-[10px] font-medium text-center leading-tight ${active ? "text-foreground" : "text-muted-foreground"}`}>
-                    {STATUS_LABELS[step]}
+      {/* ── Hero card ─────────────────────────────────────────── */}
+      <div className="rounded-xl border bg-gradient-to-br from-slate-50 to-white p-6 space-y-5">
+        {/* Top row: name + action */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2 min-w-0">
+            <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${meta.badgeBg}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+              {meta.label}
+            </span>
+            <h1 className="text-2xl font-bold tracking-tight">{event.name}</h1>
+            {(event.date || event.location) && (
+              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                {event.date && (
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" />
+                    {formatDateTime(event.date)}
                   </span>
-                </div>
-                {!isLast && (
-                  <div className={`h-px flex-1 mb-4 mx-1 ${i < currentStep ? "bg-primary" : "bg-border"}`} />
+                )}
+                {event.location && (
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5" />
+                    {event.location}
+                  </span>
                 )}
               </div>
-            );
-          })}
+            )}
+          </div>
+
+          <div className="shrink-0 pt-1">
+            {event.status === "draft" && (
+              <form action={openEvent.bind(null, id)}>
+                <Button type="submit" disabled={questionCount < 3}>
+                  Open event
+                </Button>
+              </form>
+            )}
+            {event.status === "open" && (
+              <form action={closeEvent.bind(null, id)}>
+                <Button type="submit" variant="secondary">
+                  Close responses
+                </Button>
+              </form>
+            )}
+            {event.status === "closed" && (
+              <Button asChild>
+                <Link href={`/events/${id}/match`}>Run matching →</Link>
+              </Button>
+            )}
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground text-center mt-2">
-          {STATUS_DESCRIPTIONS[event.status]}
-        </p>
+
+        {/* Status stepper */}
+        <div className="space-y-3 pt-1">
+          <div className="flex items-center">
+            {STATUS_STEPS.map((step, i) => {
+              const done = i < currentStep;
+              const active = i === currentStep;
+              const isLast = i === STATUS_STEPS.length - 1;
+              const stepMeta = STATUS_META[step];
+
+              return (
+                <div key={step} className="flex items-center flex-1 min-w-0">
+                  <div className="flex flex-col items-center gap-1.5 min-w-0">
+                    <div
+                      className={[
+                        "w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold shrink-0 transition-all",
+                        done
+                          ? "bg-foreground border-foreground text-background"
+                          : active
+                          ? `text-white ring-2 ring-offset-1 ${stepMeta.stepActive}`
+                          : "border-border bg-background text-muted-foreground",
+                      ].join(" ")}
+                    >
+                      {done ? <Check className="w-3.5 h-3.5" /> : i + 1}
+                    </div>
+                    <span
+                      className={`text-[10px] font-medium text-center leading-none ${
+                        active ? "text-foreground" : "text-muted-foreground"
+                      }`}
+                    >
+                      {stepMeta.label}
+                    </span>
+                  </div>
+                  {!isLast && (
+                    <div
+                      className={`h-px flex-1 mb-4 mx-1.5 transition-colors ${
+                        i < currentStep ? "bg-foreground/30" : "bg-border"
+                      }`}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground text-center">{meta.hint}</p>
+        </div>
       </div>
 
-      {/* Stats row */}
+      {/* ── Stats ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-baseline gap-1">
-              <p className="text-2xl font-bold">{attendeeCount}</p>
+        {/* Responses */}
+        <Card className={`transition-colors ${isLive && attendeeCount > 0 ? "border-emerald-200 bg-emerald-50/40" : ""}`}>
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start justify-between mb-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isLive ? "bg-emerald-100" : "bg-muted"}`}>
+                <Users className={`w-4 h-4 ${isLive ? "text-emerald-600" : "text-muted-foreground"}`} />
+              </div>
               {isLive && attendeeCount > 0 && (
-                <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse mb-1" />
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse mt-1" />
               )}
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-3xl font-bold tracking-tight">{attendeeCount}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
               {attendeeCount === 1 ? "Response" : "Responses"}
             </p>
           </CardContent>
         </Card>
+
+        {/* Questions */}
         <Card>
-          <CardContent className="pt-6">
-            <p className="text-2xl font-bold">{questionCount}</p>
-            <p className="text-sm text-muted-foreground">
+          <CardContent className="pt-5 pb-4">
+            <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center mb-3">
+              <MessageSquare className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <p className="text-3xl font-bold tracking-tight">{questionCount}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
               {questionCount === 1 ? "Question" : "Questions"}
             </p>
           </CardContent>
         </Card>
+
+        {/* Matches */}
         <Card>
-          <CardContent className="pt-6">
-            <p className="text-2xl font-bold">{event.matchCount}</p>
-            <p className="text-sm text-muted-foreground">Matches / attendee</p>
+          <CardContent className="pt-5 pb-4">
+            <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center mb-3">
+              <Zap className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <p className="text-3xl font-bold tracking-tight">{event.matchCount}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Matches / person</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Attendee link */}
+      {/* ── Attendee link ──────────────────────────────────────── */}
       {event.status !== "draft" && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Attendee link</CardTitle>
-            <CardDescription>
-              Share via Luma, Partiful, or directly. Anyone with this link can submit.
-            </CardDescription>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <Link2 className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-semibold">Attendee link</CardTitle>
+                <CardDescription className="text-xs">
+                  Share via Luma, Partiful, or directly — no account required
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <code className="flex-1 rounded-md bg-muted px-3 py-2 text-sm font-mono truncate">
-                {attendeeLink}
+              <code className="flex-1 rounded-lg bg-muted px-3 py-2 text-xs font-mono truncate">
+                {origin}/e/{id}
               </code>
               <CopyButton text={`/e/${id}`} />
             </div>
@@ -206,47 +321,63 @@ export default async function EventDetailPage({ params }: Props) {
         </Card>
       )}
 
-      {/* Live respondees */}
+      {/* ── Live respondees ────────────────────────────────────── */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base">Respondees</CardTitle>
-              {isLive && (
-                <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  Live
-                </span>
-              )}
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isLive ? "bg-emerald-100" : "bg-muted"}`}>
+              <Users className={`w-4 h-4 ${isLive ? "text-emerald-600" : "text-muted-foreground"}`} />
             </div>
-            <CardDescription>
-              {attendeeCount === 0
-                ? "No responses yet."
-                : `${attendeeCount} ${attendeeCount === 1 ? "person has" : "people have"} responded.`}
-            </CardDescription>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-semibold">Respondees</CardTitle>
+                {isLive && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Live
+                  </span>
+                )}
+              </div>
+              <CardDescription className="text-xs">
+                {attendeeCount === 0
+                  ? "No responses yet."
+                  : `${attendeeCount} ${attendeeCount === 1 ? "person has" : "people have"} responded.`}
+              </CardDescription>
+            </div>
           </div>
         </CardHeader>
+
         <CardContent>
           {attendeeCount === 0 ? (
-            <div className="text-center py-8 space-y-2">
-              <p className="text-3xl">👋</p>
-              <p className="text-sm text-muted-foreground">
-                {event.status === "draft"
-                  ? "Open the event first, then share the attendee link."
-                  : "Share the attendee link above to start collecting responses."}
-              </p>
+            <div className="flex flex-col items-center justify-center py-10 space-y-3 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
+                <Users className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">No responses yet</p>
+                <p className="text-xs text-muted-foreground max-w-[240px]">
+                  {event.status === "draft"
+                    ? "Open the event first, then share the attendee link."
+                    : "Share the link above to start collecting responses."}
+                </p>
+              </div>
             </div>
           ) : (
-            <ul className="divide-y">
+            <ul className="space-y-0.5">
               {attendeeList.map((a) => (
-                <li key={a.id} className="flex items-center justify-between py-2.5 gap-3">
+                <li
+                  key={a.id}
+                  className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-muted/50 transition-colors"
+                >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-semibold shrink-0">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(a.name)}`}
+                    >
                       {a.name.charAt(0).toUpperCase()}
                     </div>
                     <span className="text-sm font-medium truncate">{a.name}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground shrink-0">
+                  <span className="text-xs text-muted-foreground shrink-0 ml-3">
                     {timeAgo(a.createdAt)}
                   </span>
                 </li>
@@ -256,30 +387,40 @@ export default async function EventDetailPage({ params }: Props) {
         </CardContent>
       </Card>
 
-      {/* Questions */}
+      {/* ── Questions ──────────────────────────────────────────── */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div className="space-y-1">
-            <CardTitle className="text-base">Questions</CardTitle>
-            <CardDescription>
-              {questionCount === 0
-                ? "Add at least 3 questions before opening the event."
-                : `${questionCount} question${questionCount !== 1 ? "s" : ""} configured.`}
-            </CardDescription>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <MessageSquare className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-semibold">Questions</CardTitle>
+                <CardDescription className="text-xs">
+                  {questionCount === 0
+                    ? "Need at least 3 before you can open the event."
+                    : `${questionCount} question${questionCount !== 1 ? "s" : ""} configured.`}
+                </CardDescription>
+              </div>
+            </div>
+            {event.status === "draft" && (
+              <Button asChild size="sm" variant={questionCount === 0 ? "default" : "outline"}>
+                <Link href={`/events/${id}/questions`}>
+                  {questionCount === 0 ? "Add questions" : "Edit"}
+                </Link>
+              </Button>
+            )}
           </div>
-          {event.status === "draft" && (
-            <Button asChild size="sm">
-              <Link href={`/events/${id}/questions`}>
-                {questionCount === 0 ? "Add questions" : "Edit questions"}
-              </Link>
-            </Button>
-          )}
         </CardHeader>
+
         {event.status === "draft" && questionCount > 0 && questionCount < 3 && (
-          <CardContent>
-            <p className="text-sm text-amber-600 dark:text-amber-400">
-              {3 - questionCount} more question{3 - questionCount !== 1 ? "s" : ""} needed before you can open.
-            </p>
+          <CardContent className="pt-0">
+            <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5">
+              <p className="text-xs text-amber-700 font-medium">
+                {3 - questionCount} more {3 - questionCount === 1 ? "question" : "questions"} needed to open.
+              </p>
+            </div>
           </CardContent>
         )}
       </Card>

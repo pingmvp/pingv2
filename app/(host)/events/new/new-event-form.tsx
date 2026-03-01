@@ -15,57 +15,73 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users2, Globe, Building2, Zap } from "lucide-react";
 
 interface EventTemplate {
   id: string;
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   description: string;
   matchingMode: "general" | "two_sided";
   matchCount: string;
   eventDescription: string;
+  gradient: string;
+  iconWrap: string;
+  ring: string;
 }
 
 const EVENT_TEMPLATES: EventTemplate[] = [
   {
     id: "founder-investor",
-    icon: "🤝",
-    label: "Founder × Investor Mixer",
+    icon: <Users2 className="w-5 h-5" />,
+    label: "Founder × Investor",
     description: "Two-sided matching between founders and investors",
     matchingMode: "two_sided",
     matchCount: "3",
     eventDescription:
       "A curated mixer for founders and investors. Fill out this short questionnaire and we'll match you with the most relevant people to meet.",
+    gradient: "from-violet-50 to-purple-50/50 border-violet-200 hover:border-violet-300",
+    iconWrap: "bg-violet-100 text-violet-600",
+    ring: "ring-violet-400 border-violet-300 bg-violet-50/80",
   },
   {
     id: "networking",
-    icon: "🌐",
+    icon: <Globe className="w-5 h-5" />,
     label: "General Networking",
-    description: "Connect attendees based on shared interests and background",
+    description: "Match attendees by shared interests and background",
     matchingMode: "general",
     matchCount: "3",
     eventDescription:
-      "Connect with the right people at this event. Fill out a quick questionnaire and we'll match you based on your background and goals.",
+      "Connect with the right people. Fill out a quick questionnaire and we'll match you based on your background and goals.",
+    gradient: "from-sky-50 to-blue-50/50 border-sky-200 hover:border-sky-300",
+    iconWrap: "bg-sky-100 text-sky-600",
+    ring: "ring-sky-400 border-sky-300 bg-sky-50/80",
   },
   {
     id: "conference",
-    icon: "🎯",
+    icon: <Building2 className="w-5 h-5" />,
     label: "Conference Side Event",
     description: "High-volume matching for conference attendees",
     matchingMode: "general",
     matchCount: "5",
     eventDescription:
       "Make the most of your time at the conference. Answer a few questions and we'll introduce you to the people you should meet.",
+    gradient: "from-amber-50 to-orange-50/50 border-amber-200 hover:border-amber-300",
+    iconWrap: "bg-amber-100 text-amber-600",
+    ring: "ring-amber-400 border-amber-300 bg-amber-50/80",
   },
   {
     id: "speed",
-    icon: "⚡",
+    icon: <Zap className="w-5 h-5" />,
     label: "Speed Networking",
     description: "Maximize meetings — more matches, wider net",
     matchingMode: "general",
     matchCount: "5",
     eventDescription:
       "Speed networking done right. Tell us about yourself and we'll send you your top matches before the session starts.",
+    gradient: "from-emerald-50 to-green-50/50 border-emerald-200 hover:border-emerald-300",
+    iconWrap: "bg-emerald-100 text-emerald-600",
+    ring: "ring-emerald-400 border-emerald-300 bg-emerald-50/80",
   },
 ];
 
@@ -80,11 +96,11 @@ export function NewEventForm({ error }: Props) {
   const [matchCount, setMatchCount] = useState("3");
   const [isPending, startTransition] = useTransition();
 
-  function applyTemplate(template: EventTemplate) {
-    setSelectedTemplate(template.id);
-    setDescription(template.eventDescription);
-    setMatchingMode(template.matchingMode);
-    setMatchCount(template.matchCount);
+  function applyTemplate(t: EventTemplate) {
+    setSelectedTemplate(t.id);
+    setDescription(t.eventDescription);
+    setMatchingMode(t.matchingMode);
+    setMatchCount(t.matchCount);
   }
 
   function handleSubmit(formData: FormData) {
@@ -96,49 +112,58 @@ export function NewEventForm({ error }: Props) {
 
   return (
     <div className="space-y-8">
-      {/* Event templates */}
+      {/* Template picker */}
       <div className="space-y-3">
         <div>
-          <h2 className="text-sm font-semibold">Start from a template</h2>
+          <p className="text-sm font-semibold">Start from a template</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Pick one to pre-fill the settings below, or set everything manually.
+            Pick one to pre-fill the settings, or configure manually below.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {EVENT_TEMPLATES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => applyTemplate(t)}
-              className={[
-                "text-left rounded-lg border p-3 transition-colors hover:bg-muted/60 space-y-1",
-                selectedTemplate === t.id
-                  ? "border-primary bg-primary/5"
-                  : "border-border bg-card",
-              ].join(" ")}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-base">{t.icon}</span>
-                <span className="text-sm font-medium leading-tight">{t.label}</span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-snug">{t.description}</p>
-            </button>
-          ))}
+          {EVENT_TEMPLATES.map((t) => {
+            const isSelected = selectedTemplate === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => applyTemplate(t)}
+                className={[
+                  "text-left rounded-xl border bg-gradient-to-br p-4 transition-all duration-150 space-y-3",
+                  isSelected
+                    ? `ring-2 ring-offset-1 ${t.ring}`
+                    : `${t.gradient} hover:shadow-sm`,
+                ].join(" ")}
+              >
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${t.iconWrap}`}>
+                  {t.icon}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold leading-tight">{t.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                    {t.description}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {error && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {decodeURIComponent(error)}
         </div>
       )}
 
-      <form action={handleSubmit} className="space-y-6">
-        {/* Basic info */}
+      <form action={handleSubmit} className="space-y-5">
+        {/* Event details */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-4">
             <CardTitle className="text-base">Event details</CardTitle>
-            <CardDescription>This information appears on the attendee questionnaire page.</CardDescription>
+            <CardDescription>
+              Attendees see this on their questionnaire page.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -156,9 +181,9 @@ export function NewEventForm({ error }: Props) {
 
             <div className="space-y-2">
               <Label htmlFor="description">
-                Description{" "}
-                <span className="text-muted-foreground font-normal text-xs">
-                  — shown to attendees on the questionnaire
+                Description
+                <span className="ml-1.5 text-xs text-muted-foreground font-normal">
+                  shown to attendees
                 </span>
               </Label>
               <Textarea
@@ -166,7 +191,7 @@ export function NewEventForm({ error }: Props) {
                 name="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="A brief description attendees will see…"
+                placeholder="A short intro attendees will read before filling out the questionnaire…"
                 rows={3}
               />
             </div>
@@ -186,18 +211,14 @@ export function NewEventForm({ error }: Props) {
 
         {/* Matching settings */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-4">
             <CardTitle className="text-base">Matching settings</CardTitle>
             <CardDescription>Configure how attendees are paired together.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="matchingMode">Matching mode</Label>
-              <Select
-                name="matchingMode"
-                value={matchingMode}
-                onValueChange={setMatchingMode}
-              >
+              <Select name="matchingMode" value={matchingMode} onValueChange={setMatchingMode}>
                 <SelectTrigger id="matchingMode">
                   <SelectValue />
                 </SelectTrigger>
@@ -212,31 +233,27 @@ export function NewEventForm({ error }: Props) {
               </Select>
               {matchingMode === "two_sided" && (
                 <p className="text-xs text-muted-foreground">
-                  You'll assign attendees to groups (e.g. Investor / Founder) when they fill out the questionnaire.
+                  Attendees will be assigned to a group when they fill out the questionnaire.
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="matchCount">Matches per attendee</Label>
-              <Select
-                name="matchCount"
-                value={matchCount}
-                onValueChange={setMatchCount}
-              >
+              <Select name="matchCount" value={matchCount} onValueChange={setMatchCount}>
                 <SelectTrigger id="matchCount">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {[1, 2, 3, 4, 5].map((n) => (
                     <SelectItem key={n} value={String(n)}>
-                      {n} {n === 1 ? "match" : "matches"}
+                      {n} {n === 1 ? "match" : "matches"} per person
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                How many people each attendee is introduced to via SMS.
+                Delivered via SMS at event start. 3–5 works well for most events.
               </p>
             </div>
           </CardContent>
