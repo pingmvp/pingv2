@@ -81,6 +81,20 @@ export async function POST(_req: Request, { params }: Params) {
     };
   });
 
+  // Filter out attendees who answered fewer than 50% of questions
+  const threshold = Math.ceil(eventQuestions.length * 0.5);
+  const qualifiedAttendees = matchAttendees.filter(
+    (a) => Object.keys(a.responses).length >= threshold
+  );
+  const excludedCount = matchAttendees.length - qualifiedAttendees.length;
+
+  if (qualifiedAttendees.length < 2) {
+    return NextResponse.json(
+      { error: "Not enough attendees with sufficient responses to run matching" },
+      { status: 400 }
+    );
+  }
+
   // Run engine
   const results = runMatchingEngine({
     questions: eventQuestions.map((q) => ({
@@ -90,7 +104,7 @@ export async function POST(_req: Request, { params }: Params) {
       scaleMin: q.scaleMin ?? 1,
       scaleMax: q.scaleMax ?? 10,
     })),
-    attendees: matchAttendees,
+    attendees: qualifiedAttendees,
     matchCount: event.matchCount,
     matchingMode: event.matchingMode,
   });
@@ -116,5 +130,5 @@ export async function POST(_req: Request, { params }: Params) {
     .set({ status: "matched", updatedAt: new Date() })
     .where(eq(events.id, eventId));
 
-  return NextResponse.json({ matchCount: results.length });
+  return NextResponse.json({ matchCount: results.length, excludedCount });
 }

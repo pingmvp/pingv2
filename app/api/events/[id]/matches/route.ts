@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
-import { events, matches, attendees } from "@/lib/db/schema";
-import { and, eq } from "drizzle-orm";
+import { events, matches, attendees, questions, responses } from "@/lib/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { computeBreakdown } from "@/lib/matching/engine";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -46,5 +47,50 @@ export async function GET(_req: Request, { params }: Params) {
     .where(eq(matches.eventId, eventId))
     .orderBy(matches.score);
 
-  return NextResponse.json({ event, matches: matchResults });
+  // Fetch questions for breakdown
+  const eventQuestions = await db
+    .select()
+    .from(questions)
+    .where(eq(questions.eventId, eventId))
+    .orderBy(questions.order);
+
+  // Fetch responses for all attendees involved in these matches
+  const involvedIds = [
+    ...new Set(matchResults.flatMap((m) => [m.attendeeA.id, m.attendeeB.id])),
+  ];
+
+  const eventResponses =
+    involvedIds.length > 0
+      ? await db
+          .select()
+          .from(responses)
+          .where(inArray(responses.attendeeId, involvedIds))
+      : [];
+
+  // Build attendeeId → { questionId → value } map
+  const responsesByAttendee: Record<string, Record<string, unknown>> = {};
+  for (const r of eventResponses) {
+    if (!responsesByAttendee[r.attendeeId]) responsesByAttendee[r.attendeeId] = {};
+    responsesByAttendee[r.attendeeId][r.questionId] = r.value;
+  }
+
+  const breakdownQuestions = eventQuestions.map((q) => ({
+    id: q.id,
+    text: q.text,
+    type: q.type,
+    weight: q.weight,
+    scaleMin: q.scaleMin ?? 1,
+    scaleMax: q.scaleMax ?? 10,
+  }));
+
+  const matchesWithBreakdown = matchResults.map((m) => ({
+    ...m,
+    breakdown: computeBreakdown(
+      responsesByAttendee[m.attendeeA.id] ?? {},
+      responsesByAttendee[m.attendeeB.id] ?? {},
+      breakdownQuestions
+    ),
+  }));
+
+  return NextResponse.json({ event, matches: matchesWithBreakdown });
 }

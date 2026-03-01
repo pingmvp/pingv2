@@ -1,4 +1,9 @@
+/**
+ * Similarity functions for each question type.
+//  * All functions return a value between 0.0 (no similarity) and 1.0 (identical).
+//  */
 
+// /** single_choice: exact match */
 export function singleChoiceSimilarity(a: string, b: string): number {
   return a === b ? 1 : 0;
 }

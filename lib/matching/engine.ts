@@ -8,10 +8,23 @@ export type QuestionType = "single_choice" | "multiple_choice" | "scale";
 
 export interface MatchQuestion {
   id: string;
+  text?: string;
   type: QuestionType;
   weight: number;
   scaleMin?: number;
   scaleMax?: number;
+}
+
+export interface BreakdownItem {
+  questionId: string;
+  questionText: string;
+  weight: number;
+  answerA: unknown;
+  answerB: unknown;
+  /** null if either attendee didn't answer */
+  similarity: number | null;
+  /** similarity * weight / totalWeight; 0 if unanswered */
+  weightedContribution: number;
 }
 
 export interface MatchAttendee {
@@ -41,7 +54,7 @@ function scorePair(
   b: MatchAttendee,
   questions: MatchQuestion[]
 ): number {
-  let totalWeight = 0;
+  const totalWeight = questions.reduce((sum, q) => sum + q.weight, 0);
   let weightedScore = 0;
 
   for (const q of questions) {
@@ -67,10 +80,54 @@ function scorePair(
     }
 
     weightedScore += sim * q.weight;
-    totalWeight += q.weight;
   }
 
   return totalWeight === 0 ? 0 : weightedScore / totalWeight;
+}
+
+/** Compute per-question similarity breakdown for a matched pair */
+export function computeBreakdown(
+  aResponses: Record<string, unknown>,
+  bResponses: Record<string, unknown>,
+  questions: Required<Pick<MatchQuestion, "id" | "text" | "type" | "weight" | "scaleMin" | "scaleMax">>[]
+): BreakdownItem[] {
+  const totalWeight = questions.reduce((sum, q) => sum + q.weight, 0);
+
+  return questions.map((q) => {
+    const aVal = aResponses[q.id];
+    const bVal = bResponses[q.id];
+
+    if (aVal === undefined || bVal === undefined) {
+      return {
+        questionId: q.id,
+        questionText: q.text,
+        weight: q.weight,
+        answerA: aVal ?? null,
+        answerB: bVal ?? null,
+        similarity: null,
+        weightedContribution: 0,
+      };
+    }
+
+    let sim = 0;
+    if (q.type === "single_choice") {
+      sim = singleChoiceSimilarity(aVal as string, bVal as string);
+    } else if (q.type === "multiple_choice") {
+      sim = multipleChoiceSimilarity(aVal as string[], bVal as string[]);
+    } else if (q.type === "scale") {
+      sim = scaleSimilarity(aVal as number, bVal as number, q.scaleMin, q.scaleMax);
+    }
+
+    return {
+      questionId: q.id,
+      questionText: q.text,
+      weight: q.weight,
+      answerA: aVal,
+      answerB: bVal,
+      similarity: sim,
+      weightedContribution: totalWeight === 0 ? 0 : (sim * q.weight) / totalWeight,
+    };
+  });
 }
 
 /** Check if a pair is eligible based on matching mode */
@@ -85,7 +142,7 @@ function isPairEligible(
   return a.groupId !== b.groupId;
 }
 
-/**
+/*
  * Run the matching engine.
  * Returns match results for all selected pairs (top-K per attendee).
  */
