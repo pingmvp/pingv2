@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { events } from "@/lib/db/schema";
-import { createEventSchema } from "@/lib/validators/event";
+import { createEventSchema, updateEventSchema } from "@/lib/validators/event";
 import { eq, and } from "drizzle-orm";
 
 export async function createEvent(formData: FormData) {
@@ -33,6 +33,34 @@ export async function createEvent(formData: FormData) {
     .returning();
 
   redirect(`/events/${event.id}`);
+}
+
+export async function updateEvent(eventId: string, formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const raw = {
+    name: formData.get("name"),
+    description: formData.get("description") || undefined,
+    date: formData.get("date") || undefined,
+    location: formData.get("location") || undefined,
+    matchCount: formData.get("matchCount") ? Number(formData.get("matchCount")) : undefined,
+    matchingMode: formData.get("matchingMode") || undefined,
+  };
+
+  const parsed = updateEventSchema.safeParse(raw);
+  if (!parsed.success) {
+    const msg = parsed.error.issues[0]?.message ?? "Invalid input";
+    redirect(`/events/${eventId}/edit?error=${encodeURIComponent(msg)}`);
+  }
+
+  await db
+    .update(events)
+    .set({ ...parsed.data, updatedAt: new Date() })
+    .where(and(eq(events.id, eventId), eq(events.hostId, user.id)));
+
+  redirect(`/events/${eventId}`);
 }
 
 export async function openEvent(eventId: string) {

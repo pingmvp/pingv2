@@ -21,6 +21,7 @@ import {
   Zap,
   Link2,
   Check,
+  Pencil,
 } from "lucide-react";
 
 // ── Status config ─────────────────────────────────────────────
@@ -180,7 +181,13 @@ export default async function EventDetailPage({ params }: Props) {
             )}
           </div>
 
-          <div className="shrink-0 pt-1">
+          <div className="shrink-0 pt-1 flex items-center gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/events/${id}/edit`}>
+                <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                Edit
+              </Link>
+            </Button>
             {event.status === "draft" && (
               <form action={openEvent.bind(null, id)}>
                 <Button type="submit" disabled={questionCount < 3}>
