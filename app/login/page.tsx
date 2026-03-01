@@ -36,7 +36,7 @@ export default async function LoginPage({ searchParams }: Props) {
             </p>
           </div>
         ) : (
-          <LoginForm error={params.error} defaultTab={params.tab ?? "magic"} />
+          <LoginForm error={params.error} defaultTab={params.tab ?? "password"} />
         )}
       </div>
     </div>

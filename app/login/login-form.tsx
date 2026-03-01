@@ -12,14 +12,14 @@ interface Props {
   defaultTab?: string;
 }
 
-export function LoginForm({ error, defaultTab = "magic" }: Props) {
+export function LoginForm({ error, defaultTab = "password" }: Props) {
   const [passwordMode, setPasswordMode] = useState<"signin" | "signup">("signin");
 
   return (
     <Tabs defaultValue={defaultTab} className="space-y-4">
       <TabsList className="w-full">
-        <TabsTrigger value="magic" className="flex-1">Magic Link</TabsTrigger>
         <TabsTrigger value="password" className="flex-1">Password</TabsTrigger>
+        <TabsTrigger value="magic" className="flex-1">Magic Link</TabsTrigger>
       </TabsList>
 
       {/* ── Magic Link ── */}
