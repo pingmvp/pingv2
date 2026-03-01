@@ -168,7 +168,10 @@ export function QuestionBuilder({ eventId, initialQuestions, error }: Props) {
     formData.set("weight", String(weight));
     formData.set("order", String(questions.length));
     startTransition(async () => {
-      await addQuestion(eventId, formData);
+      const created = await addQuestion(eventId, formData);
+      if (created) {
+        setQuestions((prev) => [...prev, created]);
+      }
       setText("");
       setOptions("");
       setWeight(5);

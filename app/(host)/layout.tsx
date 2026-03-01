@@ -36,9 +36,12 @@ export default async function HostLayout({
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground hidden md:block truncate max-w-[200px]">
+            <Link
+              href="/profile"
+              className="text-sm text-muted-foreground hidden md:block truncate max-w-[200px] hover:text-foreground transition-colors"
+            >
               {user.email}
-            </span>
+            </Link>
             <form action={signOut}>
               <Button variant="ghost" size="sm" type="submit" className="text-muted-foreground">
                 Sign out

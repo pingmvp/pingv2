@@ -51,9 +51,14 @@ export async function addQuestion(eventId: string, formData: FormData) {
     redirect(`/events/${eventId}/questions?error=${encodeURIComponent(msg)}`);
   }
 
-  await db.insert(questions).values({ ...parsed.data, eventId });
+  const [created] = await db
+    .insert(questions)
+    .values({ ...parsed.data, eventId })
+    .returning();
+
   revalidatePath(`/events/${eventId}/questions`);
   revalidatePath(`/events/${eventId}`);
+  return created;
 }
 
 export async function deleteQuestion(eventId: string, questionId: string) {

@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { openEvent, closeEvent } from "../actions";
 import { CopyButton } from "./copy-button";
 import { AutoRefresh } from "./auto-refresh";
+import { QRCodeDisplay } from "./qr-code-display";
 import { formatDateTime } from "@/lib/format";
 import {
   ArrowLeft,
@@ -310,12 +311,15 @@ export default async function EventDetailPage({ params }: Props) {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-center gap-2">
               <code className="flex-1 rounded-lg bg-muted px-3 py-2 text-xs font-mono truncate">
                 {origin}/e/{id}
               </code>
               <CopyButton text={`/e/${id}`} />
+            </div>
+            <div className="border-t pt-4">
+              <QRCodeDisplay url={`${origin}/e/${id}`} />
             </div>
           </CardContent>
         </Card>
