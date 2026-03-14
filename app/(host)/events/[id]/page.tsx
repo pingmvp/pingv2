@@ -11,6 +11,7 @@ import { openEvent, closeEvent, seedTestAttendees } from "../actions";
 import { CopyButton } from "./copy-button";
 import { AutoRefresh } from "./auto-refresh";
 import { QRCodeDisplay } from "./qr-code-display";
+import { DeleteAttendeeButton } from "./delete-attendee-button";
 import { formatDateTime } from "@/lib/format";
 import {
   ArrowLeft,
@@ -23,6 +24,7 @@ import {
   Check,
   Pencil,
   FlaskConical,
+  Presentation,
 } from "lucide-react";
 
 // ── Status config ─────────────────────────────────────────────
@@ -189,6 +191,14 @@ export default async function EventDetailPage({ params }: Props) {
                 Edit
               </Link>
             </Button>
+            {event.status === "open" && (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/events/${id}/lobby`}>
+                  <Presentation className="w-3.5 h-3.5 mr-1.5" />
+                  Present
+                </Link>
+              </Button>
+            )}
             {event.status === "draft" && (
               <form action={openEvent.bind(null, id)}>
                 <Button type="submit" disabled={questionCount < 3}>
@@ -411,7 +421,7 @@ export default async function EventDetailPage({ params }: Props) {
               {attendeeList.map((a) => (
                 <li
                   key={a.id}
-                  className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-muted/50 transition-colors group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div
@@ -421,9 +431,14 @@ export default async function EventDetailPage({ params }: Props) {
                     </div>
                     <span className="text-sm font-medium truncate">{a.name}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground shrink-0 ml-3">
-                    {timeAgo(a.createdAt)}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                    <span className="text-xs text-muted-foreground">
+                      {timeAgo(a.createdAt)}
+                    </span>
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <DeleteAttendeeButton attendeeId={a.id} eventId={id} name={a.name} />
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>

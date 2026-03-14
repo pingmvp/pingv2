@@ -99,6 +99,26 @@ const SEED_NAMES = [
   ["Quinn", "Ferreira"], ["Rosa", "Björk"], ["Sam", "Nakamura"], ["Tara", "Wallace"],
 ];
 
+export async function deleteAttendee(attendeeId: string, eventId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Verify the event belongs to this host before deleting
+  const [event] = await db
+    .select({ id: events.id })
+    .from(events)
+    .where(and(eq(events.id, eventId), eq(events.hostId, user.id)));
+
+  if (!event) return;
+
+  await db
+    .delete(attendees)
+    .where(and(eq(attendees.id, attendeeId), eq(attendees.eventId, eventId)));
+
+  revalidatePath(`/events/${eventId}`);
+}
+
 export async function seedTestAttendees(eventId: string, formData: FormData) {
   if (process.env.NODE_ENV !== "development") throw new Error("Dev only");
 
