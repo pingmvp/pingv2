@@ -101,6 +101,8 @@ export async function POST(_req: Request, { params }: Params) {
       id: q.id,
       type: q.type,
       weight: q.weight,
+      // Pass options for single_choice so the engine can use ordinal similarity
+      options: q.type === "single_choice" ? (q.options as string[] | undefined) : undefined,
       scaleMin: q.scaleMin ?? 1,
       scaleMax: q.scaleMax ?? 10,
     })),
