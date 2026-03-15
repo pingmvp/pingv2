@@ -12,6 +12,7 @@ import { CopyButton } from "./copy-button";
 import { AutoRefresh } from "./auto-refresh";
 import { QRCodeDisplay } from "./qr-code-display";
 import { DeleteAttendeeButton } from "./delete-attendee-button";
+import { ArchiveEventButton } from "./archive-event-button";
 import { formatDateTime } from "@/lib/format";
 import {
   ArrowLeft,
@@ -72,6 +73,13 @@ const STATUS_META: Record<string, {
     badgeBg: "bg-teal-50 text-teal-700",
     dot: "bg-teal-500",
     stepActive: "bg-teal-500 border-teal-500 ring-teal-200",
+  },
+  archived: {
+    label: "Archived",
+    hint: "Event archived. Responses and phone numbers have been deleted.",
+    badgeBg: "bg-slate-100 text-slate-500",
+    dot: "bg-slate-400",
+    stepActive: "bg-slate-400 border-slate-400 ring-slate-200",
   },
 };
 
@@ -140,6 +148,7 @@ export default async function EventDetailPage({ params }: Props) {
 
   const attendeeCount = attendeeList.length;
   const isLive = event.status === "open";
+  const isArchived = event.status === "archived";
   const currentStep = STATUS_STEPS.indexOf(event.status as typeof STATUS_STEPS[number]);
   const meta = STATUS_META[event.status];
 
@@ -218,11 +227,22 @@ export default async function EventDetailPage({ params }: Props) {
                 <Link href={`/events/${id}/match`}>Run matching →</Link>
               </Button>
             )}
+            {(event.status === "matched" || event.status === "delivered") && (
+              <ArchiveEventButton eventId={id} />
+            )}
           </div>
         </div>
 
+        {/* Archived notice */}
+        {isArchived && (
+          <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600 space-y-1">
+            <p className="font-semibold text-slate-700">This event has been archived.</p>
+            <p>Questionnaire responses and attendee phone numbers have been permanently deleted. Attendee names and match scores are retained.</p>
+          </div>
+        )}
+
         {/* Status stepper */}
-        <div className="space-y-3 pt-1">
+        {!isArchived && <div className="space-y-3 pt-1">
           <div className="flex items-center">
             {STATUS_STEPS.map((step, i) => {
               const done = i < currentStep;
@@ -265,7 +285,7 @@ export default async function EventDetailPage({ params }: Props) {
             })}
           </div>
           <p className="text-xs text-muted-foreground text-center">{meta.hint}</p>
-        </div>
+        </div>}
       </div>
 
       {/* ── Stats ─────────────────────────────────────────────── */}
@@ -314,7 +334,7 @@ export default async function EventDetailPage({ params }: Props) {
       </div>
 
       {/* ── Attendee link ──────────────────────────────────────── */}
-      {event.status !== "draft" && (
+      {event.status !== "draft" && !isArchived && (
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">

@@ -18,6 +18,7 @@ export const eventStatusEnum = pgEnum("event_status", [
   "closed",
   "matched",
   "delivered",
+  "archived",
 ]);
 
 export const matchingModeEnum = pgEnum("matching_mode", [
@@ -93,7 +94,7 @@ export const attendees = pgTable("attendees", {
     .references(() => events.id, { onDelete: "cascade" }),
   groupId: uuid("group_id").references(() => groups.id),
   name: text("name").notNull(),
-  phone: text("phone").notNull(),
+  phone: text("phone"), // nullable — cleared on archive to remove PII
   token: text("token").notNull().unique(), // used in /e/[token] and /f/[token]
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

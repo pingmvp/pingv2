@@ -36,7 +36,7 @@ export default async function AttendeePage({ params, searchParams }: Props) {
     );
   }
 
-  if (event.status === "closed" || event.status === "matched" || event.status === "delivered") {
+  if (event.status === "closed" || event.status === "matched" || event.status === "delivered" || event.status === "archived") {
     return (
       <Screen>
         <h1 className="text-xl font-bold">{event.name}</h1>

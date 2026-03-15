@@ -43,6 +43,12 @@ const STATUS_CONFIG: Record<string, {
     badge: "bg-teal-50 text-teal-700",
     leftBorder: "border-l-teal-400",
   },
+  archived: {
+    label: "Archived",
+    dot: "bg-slate-300",
+    badge: "bg-slate-100 text-slate-400",
+    leftBorder: "border-l-slate-200",
+  },
 };
 
 export default async function DashboardPage() {

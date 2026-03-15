@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { events, questions, attendees, responses } from "@/lib/db/schema";
 import { createEventSchema, updateEventSchema } from "@/lib/validators/event";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 
 export async function createEvent(formData: FormData) {
   const supabase = await createClient();
@@ -98,6 +98,47 @@ const SEED_NAMES = [
   ["Maya", "Lindqvist"], ["Noah", "Okonkwo"], ["Olivia", "Reyes"], ["Paul", "Zhang"],
   ["Quinn", "Ferreira"], ["Rosa", "Björk"], ["Sam", "Nakamura"], ["Tara", "Wallace"],
 ];
+
+export async function archiveEvent(eventId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const [event] = await db
+    .select({ id: events.id, status: events.status })
+    .from(events)
+    .where(and(eq(events.id, eventId), eq(events.hostId, user.id)));
+
+  if (!event) return;
+  if (event.status !== "matched" && event.status !== "delivered") return;
+
+  // Get all attendee IDs for this event
+  const eventAttendees = await db
+    .select({ id: attendees.id })
+    .from(attendees)
+    .where(eq(attendees.eventId, eventId));
+
+  // Delete all questionnaire responses (bulk data, no longer needed)
+  if (eventAttendees.length > 0) {
+    await db
+      .delete(responses)
+      .where(inArray(responses.attendeeId, eventAttendees.map((a) => a.id)));
+  }
+
+  // Null out phone numbers — the only PII we hold on attendees
+  await db
+    .update(attendees)
+    .set({ phone: null })
+    .where(eq(attendees.eventId, eventId));
+
+  await db
+    .update(events)
+    .set({ status: "archived", updatedAt: new Date() })
+    .where(eq(events.id, eventId));
+
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/dashboard");
+}
 
 export async function deleteAttendee(attendeeId: string, eventId: string) {
   const supabase = await createClient();
