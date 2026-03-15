@@ -6,8 +6,9 @@ import { events, matches, attendees, questions } from "@/lib/db/schema";
 import { and, eq, count, desc } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Users, Zap, TrendingUp } from "lucide-react";
+import { ArrowLeft, Users, Zap, TrendingUp, Send } from "lucide-react";
 import { RunMatchingButton } from "./run-matching-button";
+import { DeliverResultsButton } from "./deliver-results-button";
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -61,7 +62,7 @@ export default async function MatchPage({ params }: Props) {
 
   if (!event) notFound();
 
-  // Redirect-guard: only closed/matched/delivered allowed here
+  // Redirect-guard: only closed/matched/delivered/archived allowed here
   if (event.status === "draft" || event.status === "open") {
     return (
       <div className="max-w-2xl mx-auto space-y-5">
@@ -247,16 +248,44 @@ export default async function MatchPage({ params }: Props) {
             </CardContent>
           </Card>
 
-          {/* Re-run option */}
+          {/* Deliver + re-run */}
           {event.status === "matched" && (
-            <div className="rounded-lg border border-dashed p-4 flex items-center justify-between gap-4">
+            <div className="space-y-3">
+              <Card className="border-foreground/20 bg-foreground text-background">
+                <CardContent className="pt-5 pb-5 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-semibold">Ready to deliver</p>
+                    <p className="text-sm text-background/60 mt-0.5">
+                      Attendees will see their matches on their confirmation page.
+                    </p>
+                  </div>
+                  <DeliverResultsButton eventId={id} />
+                </CardContent>
+              </Card>
+
+              <div className="rounded-lg border border-dashed p-4 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">Re-run matching</p>
+                  <p className="text-xs text-muted-foreground">
+                    This will replace all existing pairs.
+                  </p>
+                </div>
+                <RunMatchingButton eventId={id} />
+              </div>
+            </div>
+          )}
+
+          {event.status === "delivered" && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                <Send className="w-4 h-4 text-emerald-600" />
+              </div>
               <div>
-                <p className="text-sm font-medium">Re-run matching</p>
-                <p className="text-xs text-muted-foreground">
-                  This will replace all existing pairs.
+                <p className="text-sm font-semibold text-emerald-800">Results delivered</p>
+                <p className="text-xs text-emerald-700">
+                  Attendees can view their matches on their confirmation page.
                 </p>
               </div>
-              <RunMatchingButton eventId={id} />
             </div>
           )}
         </>

@@ -99,6 +99,27 @@ const SEED_NAMES = [
   ["Quinn", "Ferreira"], ["Rosa", "Björk"], ["Sam", "Nakamura"], ["Tara", "Wallace"],
 ];
 
+export async function deliverResults(eventId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const [event] = await db
+    .select({ id: events.id, status: events.status })
+    .from(events)
+    .where(and(eq(events.id, eventId), eq(events.hostId, user.id)));
+
+  if (!event || event.status !== "matched") return;
+
+  await db
+    .update(events)
+    .set({ status: "delivered", updatedAt: new Date() })
+    .where(eq(events.id, eventId));
+
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/dashboard");
+}
+
 export async function archiveEvent(eventId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
