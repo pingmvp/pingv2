@@ -34,6 +34,34 @@ export async function createEvent(formData: FormData) {
     .values({ ...parsed.data, hostId: user.id })
     .returning();
 
+  const questionsRaw = formData.get("questions");
+  if (questionsRaw) {
+    type DraftQuestion = {
+      text: string;
+      type: "single_choice" | "multiple_choice" | "scale";
+      options: string[] | null;
+      weight: number;
+      scaleMin: number | null;
+      scaleMax: number | null;
+      order: number;
+    };
+    const draftQs = JSON.parse(questionsRaw as string) as DraftQuestion[];
+    if (draftQs.length > 0) {
+      await db.insert(questions).values(
+        draftQs.map((q, i) => ({
+          eventId: event.id,
+          text: q.text,
+          type: q.type,
+          options: q.options ?? undefined,
+          weight: q.weight,
+          scaleMin: q.scaleMin ?? 1,
+          scaleMax: q.scaleMax ?? 10,
+          order: i,
+        }))
+      );
+    }
+  }
+
   redirect(`/events/${event.id}`);
 }
 

@@ -20,7 +20,7 @@ export default async function NewEventPage({ searchParams }: Props) {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">New event</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Set up your event. You'll add matching questions on the next step.
+          Set up your event and add matching questions in one step.
         </p>
       </div>
 
