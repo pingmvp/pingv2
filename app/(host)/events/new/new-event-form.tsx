@@ -260,8 +260,7 @@ export function NewEventForm({ error }: Props) {
     document.getElementById("add-question-form")?.scrollIntoView({ behavior: "smooth" });
   }
 
-  function handleAddQuestion(e: React.FormEvent) {
-    e.preventDefault();
+  function handleAddQuestion() {
     if (!qText.trim()) return;
     if (draftQuestions.length >= 10) return;
 
@@ -607,7 +606,7 @@ export function NewEventForm({ error }: Props) {
                     </div>
                   )}
 
-                  <form id="add-question-form" onSubmit={handleAddQuestion} className="space-y-4">
+                  <div id="add-question-form" className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="qText">Question</Label>
                       <Input
@@ -691,14 +690,15 @@ export function NewEventForm({ error }: Props) {
                     </div>
 
                     <Button
-                      type="submit"
+                      type="button"
                       variant="outline"
                       className="w-full"
+                      onClick={handleAddQuestion}
                       disabled={!qText.trim() || (needsOptions && qOptions.split("\n").filter((o) => o.trim()).length < 2)}
                     >
                       + Add question
                     </Button>
-                  </form>
+                  </div>
                 </div>
               </>
             )}
