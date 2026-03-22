@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
-import { events, questions, attendees, responses } from "@/lib/db/schema";
+import { events, questions, attendees, responses, groups } from "@/lib/db/schema";
 import { createEventSchema, updateEventSchema } from "@/lib/validators/event";
 import { eq, and, inArray } from "drizzle-orm";
 
@@ -119,6 +119,39 @@ export async function closeEvent(eventId: string) {
   redirect(`/events/${eventId}`);
 }
 
+export async function saveGroups(eventId: string, formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const [event] = await db
+    .select({ id: events.id })
+    .from(events)
+    .where(and(eq(events.id, eventId), eq(events.hostId, user.id)));
+  if (!event) return;
+
+  const nameA = (formData.get("groupA") as string)?.trim();
+  const nameB = (formData.get("groupB") as string)?.trim();
+  if (!nameA || !nameB) return;
+
+  const existingGroups = await db
+    .select()
+    .from(groups)
+    .where(eq(groups.eventId, eventId));
+
+  if (existingGroups.length >= 2) {
+    await db.update(groups).set({ name: nameA }).where(eq(groups.id, existingGroups[0].id));
+    await db.update(groups).set({ name: nameB }).where(eq(groups.id, existingGroups[1].id));
+  } else {
+    await db.delete(groups).where(eq(groups.eventId, eventId));
+    const [gA] = await db.insert(groups).values({ eventId, name: nameA }).returning();
+    const [gB] = await db.insert(groups).values({ eventId, name: nameB, matchWithId: gA.id }).returning();
+    await db.update(groups).set({ matchWithId: gB.id }).where(eq(groups.id, gA.id));
+  }
+
+  revalidatePath(`/events/${eventId}`);
+}
+
 const SEED_NAMES = [
   ["Alice", "Morgan"], ["Bob", "Chen"], ["Carol", "Rivera"], ["David", "Kim"],
   ["Eva", "Patel"], ["Frank", "Osei"], ["Grace", "Tanaka"], ["Henry", "Müller"],
@@ -220,7 +253,7 @@ export async function seedTestAttendees(eventId: string, formData: FormData) {
 
   // Owner check
   const [event] = await db
-    .select({ id: events.id })
+    .select({ id: events.id, matchingMode: events.matchingMode })
     .from(events)
     .where(and(eq(events.id, eventId), eq(events.hostId, user.id)));
   if (!event) redirect("/dashboard");
@@ -230,14 +263,23 @@ export async function seedTestAttendees(eventId: string, formData: FormData) {
     .from(questions)
     .where(eq(questions.eventId, eventId));
 
+  // For two_sided events, assign attendees alternately to the two groups
+  const eventGroups = event.matchingMode === "two_sided"
+    ? await db.select().from(groups).where(eq(groups.eventId, eventId))
+    : [];
+
   const ts = Date.now().toString().slice(-6);
   const newAttendees = Array.from({ length: count }, (_, i) => {
     const [first, last] = SEED_NAMES[i % SEED_NAMES.length];
+    const groupId = eventGroups.length >= 2
+      ? eventGroups[i % 2].id
+      : undefined;
     return {
       eventId,
       name: `${first} ${last}`,
       phone: `+1555${ts}${String(i).padStart(2, "0")}`,
       token: randomUUID(),
+      ...(groupId ? { groupId } : {}),
     };
   });
 

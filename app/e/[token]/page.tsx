@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { events, questions } from "@/lib/db/schema";
-import { and, eq, asc } from "drizzle-orm";
+import { events, questions, groups } from "@/lib/db/schema";
+import { eq, asc } from "drizzle-orm";
 import { QuestionnaireForm } from "./questionnaire-form";
 
 interface Props {
@@ -50,8 +50,15 @@ export default async function AttendeePage({ params, searchParams }: Props) {
   const eventQuestions = await db
     .select()
     .from(questions)
-    .where(and(eq(questions.eventId, eventId)))
+    .where(eq(questions.eventId, eventId))
     .orderBy(asc(questions.order));
+
+  const eventGroups = event.matchingMode === "two_sided"
+    ? await db
+        .select({ id: groups.id, name: groups.name })
+        .from(groups)
+        .where(eq(groups.eventId, eventId))
+    : [];
 
   return (
     <QuestionnaireForm
@@ -62,6 +69,7 @@ export default async function AttendeePage({ params, searchParams }: Props) {
         matchCount: event.matchCount,
       }}
       questions={eventQuestions}
+      groups={eventGroups}
       serverError={error}
     />
   );

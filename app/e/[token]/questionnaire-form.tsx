@@ -23,10 +23,16 @@ interface EventInfo {
   matchCount: number;
 }
 
+interface Group {
+  id: string;
+  name: string;
+}
+
 interface Props {
   eventId: string;
   event: EventInfo;
   questions: Question[];
+  groups: Group[];
   serverError?: string;
 }
 
@@ -35,14 +41,17 @@ type Answers = Record<string, string | string[] | number>;
 // Steps: 0=welcome, 1=name, 2=phone, 3..n+2=questions, n+3=ready
 // Plus an isSubmitting overlay when the server action is running
 
-export function QuestionnaireForm({ eventId, event, questions, serverError }: Props) {
-  const totalSteps = 2 + questions.length; // name + phone + each question
+export function QuestionnaireForm({ eventId, event, questions, groups, serverError }: Props) {
+  const hasGroups = groups.length >= 2;
+  const questionStepStart = hasGroups ? 4 : 3; // step index where questions begin
+  const totalSteps = (hasGroups ? 3 : 2) + questions.length;
   const readyStep = totalSteps + 1;
 
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState<"fwd" | "bwd">("fwd");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Answers>({});
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,7 +59,7 @@ export function QuestionnaireForm({ eventId, event, questions, serverError }: Pr
   const inputRef = useRef<HTMLInputElement>(null);
 
   const progress = step === 0 ? 0 : Math.min(Math.round((step / totalSteps) * 100), 100);
-  const questionIndex = step - 3; // 0-based index into questions[]
+  const questionIndex = step - questionStepStart; // 0-based index into questions[]
   const currentQuestion = questionIndex >= 0 && questionIndex < questions.length
     ? questions[questionIndex]
     : null;
@@ -125,6 +134,7 @@ export function QuestionnaireForm({ eventId, event, questions, serverError }: Pr
     const fd = new FormData();
     fd.set("name", name.trim());
     fd.set("phone", phone.trim());
+    if (selectedGroupId) fd.set("groupId", selectedGroupId);
     for (const q of questions) {
       const val = answers[q.id];
       if (val === undefined) continue;
@@ -273,7 +283,42 @@ export function QuestionnaireForm({ eventId, event, questions, serverError }: Pr
             </FieldStep>
           )}
 
-          {/* ── 3..n+2: Questions ───────────────────────────── */}
+          {/* ── 3: Group picker (two-sided only) ───────────── */}
+          {step === 3 && hasGroups && (
+            <div className="space-y-8">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                  About you
+                </p>
+                <h2 className="text-2xl font-bold leading-snug">Which best describes you?</h2>
+              </div>
+              <div className="space-y-2.5">
+                {groups.map((g) => {
+                  const sel = selectedGroupId === g.id;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedGroupId(g.id);
+                        setTimeout(advance, 320);
+                      }}
+                      className={[
+                        "w-full text-left rounded-xl border-2 px-5 py-4 font-medium transition-all duration-150",
+                        sel
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border bg-card hover:border-foreground/50 hover:bg-muted/40",
+                      ].join(" ")}
+                    >
+                      {g.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── 3..n+2 / 4..n+3: Questions ─────────────────── */}
           {currentQuestion && (
             <div className="space-y-8">
               <div className="space-y-2">

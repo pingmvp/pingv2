@@ -3,11 +3,11 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
-import { events, attendees, questions } from "@/lib/db/schema";
+import { events, attendees, questions, groups } from "@/lib/db/schema";
 import { and, eq, count, desc } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { openEvent, closeEvent, seedTestAttendees } from "../actions";
+import { openEvent, closeEvent, seedTestAttendees, saveGroups } from "../actions";
 import { CopyButton } from "./copy-button";
 import { AutoRefresh } from "./auto-refresh";
 import { QRCodeDisplay } from "./qr-code-display";
@@ -26,6 +26,7 @@ import {
   Pencil,
   FlaskConical,
   Presentation,
+  Layers,
 } from "lucide-react";
 
 // ── Status config ─────────────────────────────────────────────
@@ -145,6 +146,10 @@ export default async function EventDetailPage({ params }: Props) {
     .from(attendees)
     .where(eq(attendees.eventId, id))
     .orderBy(desc(attendees.createdAt));
+
+  const eventGroups = event.matchingMode === "two_sided"
+    ? await db.select().from(groups).where(eq(groups.eventId, id))
+    : [];
 
   const attendeeCount = attendeeList.length;
   const isLive = event.status === "open";
@@ -465,6 +470,85 @@ export default async function EventDetailPage({ params }: Props) {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Groups (two-sided only) ────────────────────────────── */}
+      {event.matchingMode === "two_sided" && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
+                <Layers className="w-4 h-4 text-violet-600" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-semibold">Matching groups</CardTitle>
+                <CardDescription className="text-xs">
+                  {eventGroups.length >= 2
+                    ? "Attendees pick their group when they fill out the questionnaire."
+                    : "Name the two sides. Attendees will self-select during sign-up."}
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {eventGroups.length >= 2 ? (
+              <div className="space-y-3">
+                <div className="flex gap-3">
+                  <div className="flex-1 rounded-lg border bg-violet-50/50 px-4 py-3 text-center">
+                    <p className="text-xs text-muted-foreground mb-0.5">Group A</p>
+                    <p className="font-semibold text-sm">{eventGroups[0].name}</p>
+                  </div>
+                  <div className="flex items-center text-muted-foreground text-xs font-medium">↔</div>
+                  <div className="flex-1 rounded-lg border bg-violet-50/50 px-4 py-3 text-center">
+                    <p className="text-xs text-muted-foreground mb-0.5">Group B</p>
+                    <p className="font-semibold text-sm">{eventGroups[1].name}</p>
+                  </div>
+                </div>
+                {event.status === "draft" && (
+                  <form action={saveGroups.bind(null, id)} className="space-y-3 pt-1">
+                    <p className="text-xs text-muted-foreground">Rename groups:</p>
+                    <div className="flex gap-2">
+                      <input
+                        name="groupA"
+                        defaultValue={eventGroups[0].name}
+                        placeholder="e.g. Investors"
+                        className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <input
+                        name="groupB"
+                        defaultValue={eventGroups[1].name}
+                        placeholder="e.g. Founders"
+                        className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <Button type="submit" size="sm" variant="outline">Save</Button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            ) : (
+              <form action={saveGroups.bind(null, id)} className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    name="groupA"
+                    placeholder="e.g. Investors"
+                    required
+                    className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <input
+                    name="groupB"
+                    placeholder="e.g. Founders"
+                    required
+                    className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <Button type="submit" size="sm">Create groups</Button>
+                </div>
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                  Groups must be set up before you open the event — attendees choose their side when signing up.
+                </p>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Questions ──────────────────────────────────────────── */}
       <Card>

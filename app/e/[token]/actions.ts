@@ -60,10 +60,11 @@ export async function submitQuestionnaire(eventId: string, formData: FormData) {
 
   // Insert attendee + all responses
   const token = randomUUID();
+  const groupId = (formData.get("groupId") as string | null) || null;
 
   const [attendee] = await db
     .insert(attendees)
-    .values({ eventId, name, phone, token })
+    .values({ eventId, name, phone, token, ...(groupId ? { groupId } : {}) })
     .returning();
 
   if (answers.length > 0) {
