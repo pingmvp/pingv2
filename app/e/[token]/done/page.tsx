@@ -44,7 +44,7 @@ export default async function ConfirmationPage({ params }: Props) {
 
   const isReady = event.status === "matched" || event.status === "delivered";
 
-  let matchList: { id: string; partnerName: string; rank: number; score: number }[] = [];
+  let matchList: { id: string; partnerName: string; rank: number; score: number; zone: string | null }[] = [];
 
   if (isReady) {
     const attendeeA = alias(attendees, "attendeeA");
@@ -54,6 +54,7 @@ export default async function ConfirmationPage({ params }: Props) {
       .select({
         id: matches.id,
         score: matches.score,
+        zone: matches.zone,
         rankForA: matches.rankForA,
         rankForB: matches.rankForB,
         attendeeAId: matches.attendeeAId,
@@ -79,6 +80,7 @@ export default async function ConfirmationPage({ params }: Props) {
           partnerName: isA ? m.attendeeBName : m.attendeeAName,
           rank: isA ? m.rankForA : m.rankForB,
           score: m.score,
+          zone: m.zone ?? null,
         };
       })
       .sort((a, b) => a.rank - b.rank);

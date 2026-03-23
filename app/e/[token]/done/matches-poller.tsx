@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Zap } from "lucide-react";
+import { MapPin, Zap } from "lucide-react";
 
 type Match = {
   id: string;
   partnerName: string;
   rank: number;
   score: number;
+  zone: string | null;
 };
 
 type MatchesData = {
@@ -91,6 +92,12 @@ export function MatchesPoller({ token, initial }: Props) {
                     </span>
                   </div>
                   <p className="text-lg font-semibold">{match.partnerName}</p>
+                  {match.zone && (
+                    <div className="flex items-center gap-1 text-xs text-sky-700 font-medium pt-0.5">
+                      <MapPin className="w-3 h-3" />
+                      {match.zone}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

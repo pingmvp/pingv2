@@ -40,6 +40,7 @@ export async function GET(_req: Request, { params }: Params) {
     .select({
       id: matches.id,
       score: matches.score,
+      zone: matches.zone,
       rankForA: matches.rankForA,
       rankForB: matches.rankForB,
       attendeeAId: matches.attendeeAId,
@@ -65,6 +66,7 @@ export async function GET(_req: Request, { params }: Params) {
         partnerName: isA ? m.attendeeBName : m.attendeeAName,
         rank: isA ? m.rankForA : m.rankForB,
         score: m.score,
+        zone: m.zone ?? null,
       };
     })
     .sort((a, b) => a.rank - b.rank);
