@@ -8,11 +8,11 @@ const answerSchema = z.union([
 
 export const submitResponseSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
-  phone: z
+  email: z
     .string()
-    .min(7, "Phone number is required")
-    .max(20)
-    .regex(/^\+?[\d\s\-().]+$/, "Invalid phone number"),
+    .min(1, "Email is required")
+    .max(200)
+    .email("Invalid email address"),
   groupId: z.string().uuid().optional(),
   answers: z.array(
     z.object({

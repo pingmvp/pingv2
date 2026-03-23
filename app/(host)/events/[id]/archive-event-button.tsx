@@ -13,7 +13,7 @@ export function ArchiveEventButton({ eventId }: { eventId: string }) {
           "Archive this event?\n\n" +
           "This will permanently:\n" +
           "• Delete all attendee questionnaire responses\n" +
-          "• Remove all attendee phone numbers\n\n" +
+          "• Remove all attendee email addresses\n\n" +
           "Attendee names and match scores will be retained.\n\n" +
           "This cannot be undone."
         );

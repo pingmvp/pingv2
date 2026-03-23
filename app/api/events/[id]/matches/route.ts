@@ -33,12 +33,12 @@ export async function GET(_req: Request, { params }: Params) {
       attendeeA: {
         id: attendeeA.id,
         name: attendeeA.name,
-        phone: attendeeA.phone,
+        email: attendeeA.email,
       },
       attendeeB: {
         id: attendeeB.id,
         name: attendeeB.name,
-        phone: attendeeB.phone,
+        email: attendeeB.email,
       },
     })
     .from(matches)

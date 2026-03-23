@@ -29,13 +29,13 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { name, phone, groupId, answers } = parsed.data;
+  const { name, email, groupId, answers } = parsed.data;
 
-  // Check for duplicate phone on this event
+  // Check for duplicate email on this event
   const [existing] = await db
     .select()
     .from(attendees)
-    .where(and(eq(attendees.eventId, eventId), eq(attendees.phone, phone)));
+    .where(and(eq(attendees.eventId, eventId), eq(attendees.email, email)));
 
   if (existing) {
     return NextResponse.json(
@@ -49,7 +49,7 @@ export async function POST(req: Request, { params }: Params) {
 
   const [attendee] = await db
     .insert(attendees)
-    .values({ eventId, name, phone, token, groupId: groupId ?? null })
+    .values({ eventId, name, email, token, groupId: groupId ?? null })
     .returning();
 
   await db.insert(responses).values(

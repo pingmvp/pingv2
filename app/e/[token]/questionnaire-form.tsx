@@ -38,7 +38,7 @@ interface Props {
 
 type Answers = Record<string, string | string[] | number>;
 
-// Steps: 0=welcome, 1=name, 2=phone, 3..n+2=questions, n+3=ready
+// Steps: 0=welcome, 1=name, 2=email, 3..n+2=questions, n+3=ready
 // Plus an isSubmitting overlay when the server action is running
 
 export function QuestionnaireForm({ eventId, event, questions, groups, serverError }: Props) {
@@ -50,7 +50,7 @@ export function QuestionnaireForm({ eventId, event, questions, groups, serverErr
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState<"fwd" | "bwd">("fwd");
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Answers>({});
   const [fieldError, setFieldError] = useState<string | null>(null);
@@ -88,11 +88,11 @@ export function QuestionnaireForm({ eventId, event, questions, groups, serverErr
     advance();
   }
 
-  function handlePhoneNext() {
-    const v = phone.trim();
-    if (!v) { setFieldError("Please enter your phone number."); return; }
-    if (!/^\+?[\d\s\-().]{7,}$/.test(v)) {
-      setFieldError("Please enter a valid phone number (e.g. +1 555 000 0000).");
+  function handleEmailNext() {
+    const v = email.trim();
+    if (!v) { setFieldError("Please enter your email address."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      setFieldError("Please enter a valid email address.");
       return;
     }
     advance();
@@ -133,7 +133,7 @@ export function QuestionnaireForm({ eventId, event, questions, groups, serverErr
     setIsSubmitting(true);
     const fd = new FormData();
     fd.set("name", name.trim());
-    fd.set("phone", phone.trim());
+    fd.set("email", email.trim());
     if (selectedGroupId) fd.set("groupId", selectedGroupId);
     for (const q of questions) {
       const val = answers[q.id];
@@ -262,24 +262,24 @@ export function QuestionnaireForm({ eventId, event, questions, groups, serverErr
             </FieldStep>
           )}
 
-          {/* ── 2: Phone ────────────────────────────────────── */}
+          {/* ── 2: Email ────────────────────────────────────── */}
           {step === 2 && (
             <FieldStep
-              label="What's your phone number?"
-              hint="We'll text your matches to this number before the event."
+              label="What's your email address?"
+              hint="We'll send your matches here before the event."
               error={fieldError}
             >
               <input
                 ref={inputRef}
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handlePhoneNext()}
-                placeholder="+1 (555) 000-0000"
-                autoComplete="tel"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleEmailNext()}
+                placeholder="you@example.com"
+                autoComplete="email"
                 className="w-full text-2xl font-medium bg-transparent border-b-2 border-muted-foreground/30 focus:border-foreground pb-3 outline-none transition-colors placeholder:text-muted-foreground/30"
               />
-              <ContinueButton onClick={handlePhoneNext} />
+              <ContinueButton onClick={handleEmailNext} />
             </FieldStep>
           )}
 
@@ -472,8 +472,8 @@ export function QuestionnaireForm({ eventId, event, questions, groups, serverErr
                   <span className="font-medium">{name}</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Phone</span>
-                  <span className="font-medium">{phone}</span>
+                  <span className="text-muted-foreground">Email</span>
+                  <span className="font-medium">{email}</span>
                 </div>
                 <div className="flex items-center justify-between py-2">
                   <span className="text-muted-foreground">Answers</span>

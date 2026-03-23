@@ -3,15 +3,20 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
-import { events, attendees, questions, groups } from "@/lib/db/schema";
-import { and, eq, count, desc } from "drizzle-orm";
+import { events, attendees, questions, groups, matches } from "@/lib/db/schema";
+import { and, eq, desc, asc } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { openEvent, closeEvent, seedTestAttendees, saveGroups } from "../actions";
+import { Textarea } from "@/components/ui/textarea";
+import { openEvent, closeEvent, seedTestAttendees, saveGroups, saveEventZones } from "../actions";
+import { RunMatchingButton } from "./match/run-matching-button";
+import { DeliverResultsButton } from "./match/deliver-results-button";
 import { CopyButton } from "./copy-button";
 import { AutoRefresh } from "./auto-refresh";
 import { QRCodeDisplay } from "./qr-code-display";
-import { DeleteAttendeeButton } from "./delete-attendee-button";
+import { AttendeeList } from "./attendee-list";
 import { ArchiveEventButton } from "./archive-event-button";
 import { formatDateTime } from "@/lib/format";
 import {
@@ -26,7 +31,9 @@ import {
   Pencil,
   FlaskConical,
   Presentation,
-  Layers,
+  ArrowUp,
+  ArrowDown,
+  Minus,
 } from "lucide-react";
 
 // ── Status config ─────────────────────────────────────────────
@@ -77,14 +84,20 @@ const STATUS_META: Record<string, {
   },
   archived: {
     label: "Archived",
-    hint: "Event archived. Responses and phone numbers have been deleted.",
+    hint: "Event archived. Responses and email addresses have been deleted.",
     badgeBg: "bg-slate-100 text-slate-500",
     dot: "bg-slate-400",
     stepActive: "bg-slate-400 border-slate-400 ring-slate-200",
   },
 };
 
-// ── Avatar colors (deterministic by name) ─────────────────────
+const QUESTION_TYPE_LABELS: Record<string, string> = {
+  single_choice: "Single choice",
+  multiple_choice: "Multiple choice",
+  scale: "Scale",
+};
+
+// ── Helpers ───────────────────────────────────────────────────
 
 const AVATAR_COLORS = [
   "bg-violet-100 text-violet-700",
@@ -113,6 +126,21 @@ function timeAgo(date: Date): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+function scoreLabel(score: number): { label: string; color: string; bar: string } {
+  if (score >= 0.8) return { label: "Excellent", color: "text-emerald-700", bar: "bg-emerald-500" };
+  if (score >= 0.6) return { label: "Good", color: "text-blue-700", bar: "bg-blue-500" };
+  if (score >= 0.4) return { label: "Fair", color: "text-amber-700", bar: "bg-amber-500" };
+  return { label: "Low", color: "text-slate-500", bar: "bg-slate-400" };
+}
+
+function Avatar({ name }: { name: string }) {
+  return (
+    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(name)}`}>
+      {name.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────
 
 interface Props {
@@ -136,10 +164,11 @@ export default async function EventDetailPage({ params }: Props) {
   const protocol = host.startsWith("localhost") ? "http" : "https";
   const origin = `${protocol}://${host}`;
 
-  const [{ value: questionCount }] = await db
-    .select({ value: count() })
+  const questionList = await db
+    .select()
     .from(questions)
-    .where(eq(questions.eventId, id));
+    .where(eq(questions.eventId, id))
+    .orderBy(asc(questions.order));
 
   const attendeeList = await db
     .select({ id: attendees.id, name: attendees.name, createdAt: attendees.createdAt })
@@ -151,6 +180,27 @@ export default async function EventDetailPage({ params }: Props) {
     ? await db.select().from(groups).where(eq(groups.eventId, id))
     : [];
 
+  // Load matches for matched/delivered/archived events
+  const hasMatchStatus = event.status === "matched" || event.status === "delivered" || event.status === "archived";
+  const aA = alias(attendees, "aA");
+  const aB = alias(attendees, "aB");
+  const matchRows = hasMatchStatus
+    ? await db
+        .select({
+          id: matches.id,
+          score: matches.score,
+          zone: matches.zone,
+          nameA: aA.name,
+          nameB: aB.name,
+        })
+        .from(matches)
+        .innerJoin(aA, eq(matches.attendeeAId, aA.id))
+        .innerJoin(aB, eq(matches.attendeeBId, aB.id))
+        .where(eq(matches.eventId, id))
+        .orderBy(desc(matches.score))
+    : [];
+
+  const questionCount = questionList.length;
   const attendeeCount = attendeeList.length;
   const isLive = event.status === "open";
   const isArchived = event.status === "archived";
@@ -172,7 +222,7 @@ export default async function EventDetailPage({ params }: Props) {
 
       {/* ── Hero card ─────────────────────────────────────────── */}
       <div className="rounded-xl border bg-gradient-to-br from-slate-50 to-white p-6 space-y-5">
-        {/* Top row: name + action */}
+        {/* Top row: name + actions */}
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2 min-w-0">
             <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${meta.badgeBg}`}>
@@ -228,9 +278,10 @@ export default async function EventDetailPage({ params }: Props) {
               </form>
             )}
             {event.status === "closed" && (
-              <Button asChild>
-                <Link href={`/events/${id}/match`}>Run matching →</Link>
-              </Button>
+              <RunMatchingButton eventId={id} label="Run matching →" size="sm" />
+            )}
+            {event.status === "matched" && (
+              <DeliverResultsButton eventId={id} />
             )}
             {(event.status === "matched" || event.status === "delivered") && (
               <ArchiveEventButton eventId={id} />
@@ -242,60 +293,52 @@ export default async function EventDetailPage({ params }: Props) {
         {isArchived && (
           <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600 space-y-1">
             <p className="font-semibold text-slate-700">This event has been archived.</p>
-            <p>Questionnaire responses and attendee phone numbers have been permanently deleted. Attendee names and match scores are retained.</p>
+            <p>Questionnaire responses and attendee email addresses have been permanently deleted. Attendee names and match scores are retained.</p>
           </div>
         )}
 
         {/* Status stepper */}
-        {!isArchived && <div className="space-y-3 pt-1">
-          <div className="flex items-center">
-            {STATUS_STEPS.map((step, i) => {
-              const done = i < currentStep;
-              const active = i === currentStep;
-              const isLast = i === STATUS_STEPS.length - 1;
-              const stepMeta = STATUS_META[step];
-
-              return (
-                <div key={step} className="flex items-center flex-1 min-w-0">
-                  <div className="flex flex-col items-center gap-1.5 min-w-0">
-                    <div
-                      className={[
-                        "w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold shrink-0 transition-all",
-                        done
-                          ? "bg-foreground border-foreground text-background"
-                          : active
-                          ? `text-white ring-2 ring-offset-1 ${stepMeta.stepActive}`
-                          : "border-border bg-background text-muted-foreground",
-                      ].join(" ")}
-                    >
-                      {done ? <Check className="w-3.5 h-3.5" /> : i + 1}
+        {!isArchived && (
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center">
+              {STATUS_STEPS.map((step, i) => {
+                const done = i < currentStep;
+                const active = i === currentStep;
+                const isLast = i === STATUS_STEPS.length - 1;
+                const stepMeta = STATUS_META[step];
+                return (
+                  <div key={step} className="flex items-center flex-1 min-w-0">
+                    <div className="flex flex-col items-center gap-1.5 min-w-0">
+                      <div
+                        className={[
+                          "w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold shrink-0 transition-all",
+                          done
+                            ? "bg-foreground border-foreground text-background"
+                            : active
+                            ? `text-white ring-2 ring-offset-1 ${stepMeta.stepActive}`
+                            : "border-border bg-background text-muted-foreground",
+                        ].join(" ")}
+                      >
+                        {done ? <Check className="w-3.5 h-3.5" /> : i + 1}
+                      </div>
+                      <span className={`text-[10px] font-medium text-center leading-none ${active ? "text-foreground" : "text-muted-foreground"}`}>
+                        {stepMeta.label}
+                      </span>
                     </div>
-                    <span
-                      className={`text-[10px] font-medium text-center leading-none ${
-                        active ? "text-foreground" : "text-muted-foreground"
-                      }`}
-                    >
-                      {stepMeta.label}
-                    </span>
+                    {!isLast && (
+                      <div className={`h-px flex-1 mb-4 mx-1.5 transition-colors ${i < currentStep ? "bg-foreground/30" : "bg-border"}`} />
+                    )}
                   </div>
-                  {!isLast && (
-                    <div
-                      className={`h-px flex-1 mb-4 mx-1.5 transition-colors ${
-                        i < currentStep ? "bg-foreground/30" : "bg-border"
-                      }`}
-                    />
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground text-center">{meta.hint}</p>
           </div>
-          <p className="text-xs text-muted-foreground text-center">{meta.hint}</p>
-        </div>}
+        )}
       </div>
 
       {/* ── Stats ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-4">
-        {/* Responses */}
         <Card className={`transition-colors ${isLive && attendeeCount > 0 ? "border-emerald-200 bg-emerald-50/40" : ""}`}>
           <CardContent className="pt-5 pb-4">
             <div className="flex items-start justify-between mb-3">
@@ -307,26 +350,20 @@ export default async function EventDetailPage({ params }: Props) {
               )}
             </div>
             <p className="text-3xl font-bold tracking-tight">{attendeeCount}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {attendeeCount === 1 ? "Response" : "Responses"}
-            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">{attendeeCount === 1 ? "Response" : "Responses"}</p>
           </CardContent>
         </Card>
 
-        {/* Questions */}
         <Card>
           <CardContent className="pt-5 pb-4">
             <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center mb-3">
               <MessageSquare className="w-4 h-4 text-muted-foreground" />
             </div>
             <p className="text-3xl font-bold tracking-tight">{questionCount}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {questionCount === 1 ? "Question" : "Questions"}
-            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">{questionCount === 1 ? "Question" : "Questions"}</p>
           </CardContent>
         </Card>
 
-        {/* Matches */}
         <Card>
           <CardContent className="pt-5 pb-4">
             <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center mb-3">
@@ -337,6 +374,59 @@ export default async function EventDetailPage({ params }: Props) {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Meeting zones ──────────────────────────────────────── */}
+      {hasMatchStatus && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <MapPin className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-semibold">Meeting zones</CardTitle>
+                  <span className="text-xs text-muted-foreground border rounded-full px-1.5 py-0.5">optional</span>
+                </div>
+                <CardDescription className="text-xs">
+                  {event.zones && event.zones.length > 0
+                    ? `${event.zones.length} zone${event.zones.length !== 1 ? "s" : ""} — ${matchRows.length} pairs distributed evenly`
+                    : "Assign zones to tell attendees where to meet their match."}
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          {(event.status === "matched" || event.status === "delivered") && (
+            <CardContent>
+              <form action={saveEventZones.bind(null, id)} className="space-y-3">
+                <Textarea
+                  name="zones"
+                  placeholder={"Zone A\nZone B\nZone C"}
+                  defaultValue={(event.zones ?? []).join("\n")}
+                  rows={3}
+                  className="font-mono text-xs"
+                />
+                <p className="text-xs text-muted-foreground">
+                  One zone per line. {matchRows.length} pairs distributed evenly. Leave blank to clear.
+                </p>
+                <Button type="submit" size="sm" variant="outline">Save zones</Button>
+              </form>
+            </CardContent>
+          )}
+          {event.status === "archived" && event.zones && event.zones.length > 0 && (
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {event.zones.map((z) => (
+                  <span key={z} className="text-xs font-medium text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {z}
+                  </span>
+                ))}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       {/* ── Attendee link ──────────────────────────────────────── */}
       {event.status !== "draft" && !isArchived && (
@@ -400,7 +490,7 @@ export default async function EventDetailPage({ params }: Props) {
         </Card>
       )}
 
-      {/* ── Live respondees ────────────────────────────────────── */}
+      {/* ── Respondees ─────────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3">
@@ -425,7 +515,6 @@ export default async function EventDetailPage({ params }: Props) {
             </div>
           </div>
         </CardHeader>
-
         <CardContent>
           {attendeeCount === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 space-y-3 text-center">
@@ -442,115 +531,75 @@ export default async function EventDetailPage({ params }: Props) {
               </div>
             </div>
           ) : (
-            <ul className="space-y-0.5">
-              {attendeeList.map((a) => (
-                <li
-                  key={a.id}
-                  className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-muted/50 transition-colors group"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(a.name)}`}
-                    >
-                      {a.name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-sm font-medium truncate">{a.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-3">
-                    <span className="text-xs text-muted-foreground">
-                      {timeAgo(a.createdAt)}
-                    </span>
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <DeleteAttendeeButton attendeeId={a.id} eventId={id} name={a.name} />
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <AttendeeList attendees={attendeeList} eventId={id} />
           )}
         </CardContent>
       </Card>
 
-      {/* ── Groups (two-sided only) ────────────────────────────── */}
-      {event.matchingMode === "two_sided" && (
+      {/* ── Matches ────────────────────────────────────────────── */}
+      {matchRows.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
-                <Layers className="w-4 h-4 text-violet-600" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                  <Zap className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-semibold">Matches</CardTitle>
+                  <CardDescription className="text-xs">
+                    {matchRows.length} pairs · avg{" "}
+                    {Math.round((matchRows.reduce((s, m) => s + m.score, 0) / matchRows.length) * 100)}% compatibility
+                  </CardDescription>
+                </div>
               </div>
-              <div>
-                <CardTitle className="text-sm font-semibold">Matching groups</CardTitle>
-                <CardDescription className="text-xs">
-                  {eventGroups.length >= 2
-                    ? "Attendees pick their group when they fill out the questionnaire."
-                    : "Name the two sides. Attendees will self-select during sign-up."}
-                </CardDescription>
-              </div>
+              {event.status === "matched" && (
+                <RunMatchingButton eventId={id} label="Re-run" size="sm" />
+              )}
             </div>
           </CardHeader>
           <CardContent>
-            {eventGroups.length >= 2 ? (
-              <div className="space-y-3">
-                <div className="flex gap-3">
-                  <div className="flex-1 rounded-lg border bg-violet-50/50 px-4 py-3 text-center">
-                    <p className="text-xs text-muted-foreground mb-0.5">Group A</p>
-                    <p className="font-semibold text-sm">{eventGroups[0].name}</p>
-                  </div>
-                  <div className="flex items-center text-muted-foreground text-xs font-medium">↔</div>
-                  <div className="flex-1 rounded-lg border bg-violet-50/50 px-4 py-3 text-center">
-                    <p className="text-xs text-muted-foreground mb-0.5">Group B</p>
-                    <p className="font-semibold text-sm">{eventGroups[1].name}</p>
-                  </div>
-                </div>
-                {event.status === "draft" && (
-                  <form action={saveGroups.bind(null, id)} className="space-y-3 pt-1">
-                    <p className="text-xs text-muted-foreground">Rename groups:</p>
-                    <div className="flex gap-2">
-                      <input
-                        name="groupA"
-                        defaultValue={eventGroups[0].name}
-                        placeholder="e.g. Investors"
-                        className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                      <input
-                        name="groupB"
-                        defaultValue={eventGroups[1].name}
-                        placeholder="e.g. Founders"
-                        className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                      <Button type="submit" size="sm" variant="outline">Save</Button>
+            <ul className="space-y-2">
+              {matchRows.map((m) => {
+                const pct = Math.round(m.score * 100);
+                const { label, color, bar } = scoreLabel(m.score);
+                return (
+                  <li
+                    key={m.id}
+                    className="flex items-center gap-3 p-3 rounded-xl border bg-card hover:bg-muted/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 w-32 shrink-0 min-w-0">
+                      <Avatar name={m.nameA} />
+                      <span className="text-sm font-medium truncate">{m.nameA}</span>
                     </div>
-                  </form>
-                )}
-              </div>
-            ) : (
-              <form action={saveGroups.bind(null, id)} className="space-y-3">
-                <div className="flex gap-2">
-                  <input
-                    name="groupA"
-                    placeholder="e.g. Investors"
-                    required
-                    className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <input
-                    name="groupB"
-                    placeholder="e.g. Founders"
-                    required
-                    className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <Button type="submit" size="sm">Create groups</Button>
-                </div>
-                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                  Groups must be set up before you open the event — attendees choose their side when signing up.
-                </p>
-              </form>
-            )}
+                    <div className="flex-1 space-y-1 min-w-0">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className={`font-semibold ${color}`}>{label}</span>
+                        <span className="text-muted-foreground font-medium">{pct}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full rounded-full ${bar}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 w-32 shrink-0 min-w-0 justify-end">
+                      <span className="text-sm font-medium truncate text-right">{m.nameB}</span>
+                      <Avatar name={m.nameB} />
+                    </div>
+                    {m.zone && (
+                      <div className="flex items-center gap-1 shrink-0 text-xs font-medium text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+                        <MapPin className="w-3 h-3" />
+                        {m.zone}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           </CardContent>
         </Card>
       )}
 
-      {/* ── Questions ──────────────────────────────────────────── */}
+      {/* ── Questions & Groups ─────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-4">
@@ -577,15 +626,124 @@ export default async function EventDetailPage({ params }: Props) {
           </div>
         </CardHeader>
 
-        {event.status === "draft" && questionCount > 0 && questionCount < 3 && (
-          <CardContent className="pt-0">
+        <CardContent className="space-y-4">
+          {/* Matching groups (two-sided only) — shown above questions */}
+          {event.matchingMode === "two_sided" && (
+            <div className="space-y-3 pb-3 border-b">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Matching groups
+              </p>
+              {eventGroups.length >= 2 ? (
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <div className="flex-1 rounded-lg border bg-muted/30 px-4 py-2.5 text-center">
+                      <p className="text-xs text-muted-foreground mb-0.5">Group A</p>
+                      <p className="font-semibold text-sm">{eventGroups[0].name}</p>
+                    </div>
+                    <div className="flex items-center text-muted-foreground text-xs font-medium">↔</div>
+                    <div className="flex-1 rounded-lg border bg-muted/30 px-4 py-2.5 text-center">
+                      <p className="text-xs text-muted-foreground mb-0.5">Group B</p>
+                      <p className="font-semibold text-sm">{eventGroups[1].name}</p>
+                    </div>
+                  </div>
+                  {event.status === "draft" && (
+                    <form action={saveGroups.bind(null, id)} className="flex gap-2">
+                      <input
+                        name="groupA"
+                        defaultValue={eventGroups[0].name}
+                        placeholder="e.g. Investors"
+                        className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <input
+                        name="groupB"
+                        defaultValue={eventGroups[1].name}
+                        placeholder="e.g. Founders"
+                        className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <Button type="submit" size="sm" variant="outline">Rename</Button>
+                    </form>
+                  )}
+                </div>
+              ) : (
+                <form action={saveGroups.bind(null, id)} className="space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      name="groupA"
+                      placeholder="e.g. Investors"
+                      required
+                      className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <input
+                      name="groupB"
+                      placeholder="e.g. Founders"
+                      required
+                      className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <Button type="submit" size="sm">Create groups</Button>
+                  </div>
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                    Groups must be set up before you open the event.
+                  </p>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* Question list */}
+          {questionCount === 0 ? (
+            <p className="text-xs text-muted-foreground">No questions added yet.</p>
+          ) : (
+            <ul className="space-y-0">
+              {questionList.map((q, i) => {
+                const w = q.weight;
+                const weightDisplay =
+                  w >= 7
+                    ? { icon: <ArrowUp className="w-3 h-3" />, cls: "text-emerald-600 bg-emerald-50" }
+                    : w >= 4
+                    ? { icon: <Minus className="w-3 h-3" />, cls: "text-sky-600 bg-sky-50" }
+                    : { icon: <ArrowDown className="w-3 h-3" />, cls: "text-red-400 bg-red-50" };
+
+                return (
+                  <li key={q.id} className="flex items-start gap-3 py-2.5 border-b last:border-0">
+                    <span className="text-xs text-muted-foreground font-medium w-5 shrink-0 mt-0.5">
+                      {i + 1}.
+                    </span>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <p className="text-sm font-medium leading-snug">{q.text}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-xs">
+                          {QUESTION_TYPE_LABELS[q.type]}
+                        </Badge>
+                        {q.options && q.options.length > 0 && (
+                          <span className="text-xs text-muted-foreground truncate max-w-[240px]">
+                            {q.options.join(" · ")}
+                          </span>
+                        )}
+                        {q.type === "scale" && (
+                          <span className="text-xs text-muted-foreground">
+                            {q.scaleMin ?? 1}–{q.scaleMax ?? 10}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-semibold shrink-0 ${weightDisplay.cls}`}>
+                      {weightDisplay.icon}
+                      {w}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {event.status === "draft" && questionCount > 0 && questionCount < 3 && (
             <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5">
               <p className="text-xs text-amber-700 font-medium">
                 {3 - questionCount} more {3 - questionCount === 1 ? "question" : "questions"} needed to open.
               </p>
             </div>
-          </CardContent>
-        )}
+          )}
+        </CardContent>
       </Card>
     </div>
   );

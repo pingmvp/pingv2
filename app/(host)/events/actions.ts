@@ -261,10 +261,10 @@ export async function archiveEvent(eventId: string) {
       .where(inArray(responses.attendeeId, eventAttendees.map((a) => a.id)));
   }
 
-  // Null out phone numbers — the only PII we hold on attendees
+  // Null out email addresses — the only PII we hold on attendees
   await db
     .update(attendees)
-    .set({ phone: sql`NULL` })
+    .set({ email: sql`NULL` })
     .where(eq(attendees.eventId, eventId));
 
   await db
@@ -331,7 +331,7 @@ export async function seedTestAttendees(eventId: string, formData: FormData) {
     return {
       eventId,
       name: `${first} ${last}`,
-      phone: `+1555${ts}${String(i).padStart(2, "0")}`,
+      email: `test${ts}${String(i).padStart(2, "0")}@example.com`,
       token: randomUUID(),
       ...(groupId ? { groupId } : {}),
     };

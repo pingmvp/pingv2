@@ -7,20 +7,20 @@ import { and, eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 
-const phoneSchema = z
+const emailSchema = z
   .string()
-  .min(7, "Phone number is required")
-  .regex(/^\+?[\d\s\-().]+$/, "Invalid phone number");
+  .min(1, "Email is required")
+  .email("Invalid email address");
 
 export async function submitQuestionnaire(eventId: string, formData: FormData) {
   const name = (formData.get("name") as string)?.trim();
-  const phone = (formData.get("phone") as string)?.trim();
+  const email = (formData.get("email") as string)?.trim();
 
   if (!name) redirect(`/e/${eventId}?error=Name+is+required`);
 
-  const phoneResult = phoneSchema.safeParse(phone);
-  if (!phoneResult.success) {
-    redirect(`/e/${eventId}?error=${encodeURIComponent(phoneResult.error.issues[0].message)}`);
+  const emailResult = emailSchema.safeParse(email);
+  if (!emailResult.success) {
+    redirect(`/e/${eventId}?error=${encodeURIComponent(emailResult.error.issues[0].message)}`);
   }
 
   // Verify event is open
@@ -31,11 +31,11 @@ export async function submitQuestionnaire(eventId: string, formData: FormData) {
 
   if (!event) redirect(`/e/${eventId}?error=This+event+is+not+accepting+responses`);
 
-  // Duplicate phone check
+  // Duplicate email check
   const [existing] = await db
     .select()
     .from(attendees)
-    .where(and(eq(attendees.eventId, eventId), eq(attendees.phone, phone)));
+    .where(and(eq(attendees.eventId, eventId), eq(attendees.email, email)));
 
   if (existing) redirect(`/e/${eventId}?error=You+have+already+submitted+a+response`);
 
@@ -64,7 +64,7 @@ export async function submitQuestionnaire(eventId: string, formData: FormData) {
 
   const [attendee] = await db
     .insert(attendees)
-    .values({ eventId, name, phone, token, ...(groupId ? { groupId } : {}) })
+    .values({ eventId, name, email, token, ...(groupId ? { groupId } : {}) })
     .returning();
 
   if (answers.length > 0) {

@@ -95,7 +95,7 @@ export const attendees = pgTable("attendees", {
     .references(() => events.id, { onDelete: "cascade" }),
   groupId: uuid("group_id").references(() => groups.id),
   name: text("name").notNull(),
-  phone: text("phone"), // nullable — cleared on archive to remove PII
+  email: text("email"), // nullable — cleared on archive to remove PII
   token: text("token").notNull().unique(), // used in /e/[token] and /f/[token]
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
