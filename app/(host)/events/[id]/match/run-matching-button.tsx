@@ -7,9 +7,12 @@ import { Zap } from "lucide-react";
 
 interface Props {
   eventId: string;
+  redirectTo?: string;
+  label?: string;
+  size?: "default" | "sm" | "lg";
 }
 
-export function RunMatchingButton({ eventId }: Props) {
+export function RunMatchingButton({ eventId, redirectTo, label, size = "lg" }: Props) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "running" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +31,11 @@ export function RunMatchingButton({ eventId }: Props) {
         return;
       }
 
-      router.refresh();
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else {
+        router.refresh();
+      }
     } catch {
       setError("Network error. Please try again.");
       setState("error");
@@ -38,13 +45,13 @@ export function RunMatchingButton({ eventId }: Props) {
   return (
     <div className="space-y-3">
       <Button
-        size="lg"
+        size={size}
         onClick={handleRun}
         disabled={state === "running"}
         className="gap-2"
       >
         <Zap className="w-4 h-4" />
-        {state === "running" ? "Calculating matches…" : "Run matching"}
+        {state === "running" ? "Calculating…" : (label ?? "Run matching")}
       </Button>
       {error && (
         <p className="text-sm text-destructive">{error}</p>

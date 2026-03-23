@@ -48,6 +48,7 @@ export const events = pgTable("events", {
   location: text("location"),
   matchCount: integer("match_count").notNull().default(3),
   matchingMode: matchingModeEnum("matching_mode").notNull().default("general"),
+  zones: jsonb("zones").$type<string[]>(), // optional meeting zone names
   status: eventStatusEnum("status").notNull().default("draft"),
   deliveryTime: timestamp("delivery_time", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -131,6 +132,7 @@ export const matches = pgTable("matches", {
   score: real("score").notNull(), // 0.0 - 1.0 compatibility score
   rankForA: integer("rank_for_a").notNull(),
   rankForB: integer("rank_for_b").notNull(),
+  zone: text("zone"), // optional meeting zone assigned to this pair
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

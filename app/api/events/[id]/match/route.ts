@@ -21,7 +21,7 @@ export async function POST(_req: Request, { params }: Params) {
 
   if (!event) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (event.status !== "closed") {
+  if (event.status !== "closed" && event.status !== "matched") {
     return NextResponse.json(
       { error: "Event must be closed before matching" },
       { status: 400 }

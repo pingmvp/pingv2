@@ -5,9 +5,9 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
-import { events, questions, attendees, responses, groups } from "@/lib/db/schema";
+import { events, questions, attendees, responses, groups, matches } from "@/lib/db/schema";
 import { createEventSchema, updateEventSchema } from "@/lib/validators/event";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql, asc } from "drizzle-orm";
 
 export async function createEvent(formData: FormData) {
   const supabase = await createClient();
@@ -33,6 +33,15 @@ export async function createEvent(formData: FormData) {
     .insert(events)
     .values({ ...parsed.data, hostId: user.id })
     .returning();
+
+  // Create groups for two_sided events
+  if (parsed.data.matchingMode === "two_sided") {
+    const nameA = (formData.get("groupA") as string)?.trim() || "Group A";
+    const nameB = (formData.get("groupB") as string)?.trim() || "Group B";
+    const [gA] = await db.insert(groups).values({ eventId: event.id, name: nameA }).returning();
+    const [gB] = await db.insert(groups).values({ eventId: event.id, name: nameB, matchWithId: gA.id }).returning();
+    await db.update(groups).set({ matchWithId: gB.id }).where(eq(groups.id, gA.id));
+  }
 
   const questionsRaw = formData.get("questions");
   if (questionsRaw) {
@@ -117,6 +126,51 @@ export async function closeEvent(eventId: string) {
     .where(and(eq(events.id, eventId), eq(events.hostId, user.id)));
 
   redirect(`/events/${eventId}`);
+}
+
+export async function saveEventZones(eventId: string, formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const [event] = await db
+    .select({ id: events.id })
+    .from(events)
+    .where(and(eq(events.id, eventId), eq(events.hostId, user.id)));
+  if (!event) return;
+
+  const zonesRaw = (formData.get("zones") as string)?.trim() ?? "";
+  const zoneNames = zonesRaw.split("\n").map((z) => z.trim()).filter(Boolean);
+
+  // Save zone names at the event level
+  await db
+    .update(events)
+    .set({ zones: zoneNames.length > 0 ? zoneNames : null, updatedAt: new Date() })
+    .where(eq(events.id, eventId));
+
+  // If matches exist, redistribute them across the new zones
+  const eventMatches = await db
+    .select({ id: matches.id })
+    .from(matches)
+    .where(eq(matches.eventId, eventId))
+    .orderBy(asc(matches.score));
+
+  if (eventMatches.length > 0) {
+    if (zoneNames.length === 0) {
+      await db.update(matches).set({ zone: sql`NULL` }).where(eq(matches.eventId, eventId));
+    } else {
+      await Promise.all(
+        eventMatches.map((m, i) =>
+          db.update(matches)
+            .set({ zone: zoneNames[i % zoneNames.length] })
+            .where(eq(matches.id, m.id))
+        )
+      );
+    }
+  }
+
+  revalidatePath(`/events/${eventId}/match`);
+  revalidatePath(`/events/${eventId}`);
 }
 
 export async function saveGroups(eventId: string, formData: FormData) {
@@ -210,7 +264,7 @@ export async function archiveEvent(eventId: string) {
   // Null out phone numbers — the only PII we hold on attendees
   await db
     .update(attendees)
-    .set({ phone: null })
+    .set({ phone: sql`NULL` })
     .where(eq(attendees.eventId, eventId));
 
   await db

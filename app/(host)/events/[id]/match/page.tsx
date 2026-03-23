@@ -6,9 +6,12 @@ import { events, matches, attendees, questions } from "@/lib/db/schema";
 import { and, eq, count, desc } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Users, Zap, TrendingUp, Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Users, Zap, TrendingUp, Send, MapPin } from "lucide-react";
 import { RunMatchingButton } from "./run-matching-button";
 import { DeliverResultsButton } from "./deliver-results-button";
+import { saveEventZones } from "../../actions";
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -97,6 +100,7 @@ export default async function MatchPage({ params }: Props) {
       score: matches.score,
       rankForA: matches.rankForA,
       rankForB: matches.rankForB,
+      zone: matches.zone,
       nameA: aA.name,
       nameB: aB.name,
     })
@@ -111,6 +115,9 @@ export default async function MatchPage({ params }: Props) {
     ? matchRows.reduce((s, m) => s + m.score, 0) / matchRows.length
     : 0;
   const topScore = hasResults ? matchRows[0].score : 0;
+
+  // Derive current unique zones (preserving input order)
+  const assignedZones = [...new Set(matchRows.map((m) => m.zone).filter(Boolean))] as string[];
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -157,7 +164,7 @@ export default async function MatchPage({ params }: Props) {
                 { icon: Users, label: "Respondees", value: attendeeCount },
                 { icon: Zap, label: "Questions", value: questionCount },
                 { icon: TrendingUp, label: "Matches / person", value: event.matchCount },
-              ].map(({ icon: Icon, label, value }) => (
+              ].map(({ label, value }) => (
                 <div key={label} className="rounded-lg bg-muted/60 p-3 text-center">
                   <p className="text-xl font-bold">{value}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
@@ -217,7 +224,7 @@ export default async function MatchPage({ params }: Props) {
                       className="flex items-center gap-4 p-3 rounded-xl border bg-card hover:bg-muted/30 transition-colors"
                     >
                       {/* Person A */}
-                      <div className="flex items-center gap-2 w-36 shrink-0 min-w-0">
+                      <div className="flex items-center gap-2 w-32 shrink-0 min-w-0">
                         <Avatar name={m.nameA} />
                         <span className="text-sm font-medium truncate">{m.nameA}</span>
                       </div>
@@ -237,10 +244,18 @@ export default async function MatchPage({ params }: Props) {
                       </div>
 
                       {/* Person B */}
-                      <div className="flex items-center gap-2 w-36 shrink-0 min-w-0 justify-end">
+                      <div className="flex items-center gap-2 w-32 shrink-0 min-w-0 justify-end">
                         <span className="text-sm font-medium truncate text-right">{m.nameB}</span>
                         <Avatar name={m.nameB} />
                       </div>
+
+                      {/* Zone */}
+                      {m.zone && (
+                        <div className="flex items-center gap-1 shrink-0 text-xs font-medium text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+                          <MapPin className="w-3 h-3" />
+                          {m.zone}
+                        </div>
+                      )}
                     </li>
                   );
                 })}
@@ -248,9 +263,49 @@ export default async function MatchPage({ params }: Props) {
             </CardContent>
           </Card>
 
-          {/* Deliver + re-run */}
+          {/* Zone assignment + deliver + re-run */}
           {event.status === "matched" && (
             <div className="space-y-3">
+              {/* Meeting zones */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-base">Meeting zones</CardTitle>
+                        <span className="text-xs text-muted-foreground border rounded-full px-2 py-0.5">optional</span>
+                      </div>
+                      <CardDescription>
+                        {assignedZones.length > 0
+                          ? `${assignedZones.length} zone${assignedZones.length !== 1 ? "s" : ""} · ~${Math.ceil(matchRows.length / assignedZones.length)} pairs each`
+                          : "Add zone names to tell attendees where to meet their match."}
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <form action={saveEventZones.bind(null, id)} className="space-y-3">
+                    <Textarea
+                      name="zones"
+                      placeholder={"Zone A\nZone B\nZone C"}
+                      defaultValue={assignedZones.join("\n")}
+                      rows={4}
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      One zone per line. {matchRows.length} pairs will be distributed evenly across however many zones you enter. Leave blank to clear zones.
+                    </p>
+                    <Button type="submit" size="sm" variant="outline">
+                      Assign zones
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Deliver */}
               <Card className="border-foreground/20 bg-foreground text-background">
                 <CardContent className="pt-5 pb-5 flex items-center justify-between gap-4">
                   <div>

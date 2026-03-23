@@ -230,6 +230,10 @@ export function NewEventForm({ error }: Props) {
   const [matchCount, setMatchCount] = useState("3");
   const [isPending, startTransition] = useTransition();
 
+  // Group name state (two_sided only)
+  const [groupAName, setGroupAName] = useState("Investors");
+  const [groupBName, setGroupBName] = useState("Founders");
+
   // Question builder state
   const [draftQuestions, setDraftQuestions] = useState<DraftQuestion[]>([]);
   const [qType, setQType] = useState<QuestionType>("single_choice");
@@ -247,6 +251,10 @@ export function NewEventForm({ error }: Props) {
     setDescription(t.eventDescription);
     setMatchingMode(t.matchingMode);
     setMatchCount(t.matchCount);
+    if (t.matchingMode === "two_sided") {
+      setGroupAName("Investors");
+      setGroupBName("Founders");
+    }
   }
 
   function applyQuestionTemplate(t: QuestionTemplate) {
@@ -320,6 +328,10 @@ export function NewEventForm({ error }: Props) {
     formData.set("matchingMode", matchingMode);
     formData.set("matchCount", matchCount);
     formData.set("questions", JSON.stringify(draftQuestions));
+    if (matchingMode === "two_sided") {
+      formData.set("groupA", groupAName.trim() || "Group A");
+      formData.set("groupB", groupBName.trim() || "Group B");
+    }
     startTransition(() => createEvent(formData));
   }
 
@@ -445,9 +457,27 @@ export function NewEventForm({ error }: Props) {
                 </SelectContent>
               </Select>
               {matchingMode === "two_sided" && (
-                <p className="text-xs text-muted-foreground">
-                  Attendees will be assigned to a group when they fill out the questionnaire.
-                </p>
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                  <div>
+                    <p className="text-sm font-medium">Name your two groups</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Attendees will pick which group they belong to when they sign up.
+                    </p>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      value={groupAName}
+                      onChange={(e) => setGroupAName(e.target.value)}
+                      placeholder="e.g. Investors"
+                    />
+                    <span className="text-muted-foreground text-sm shrink-0">↔</span>
+                    <Input
+                      value={groupBName}
+                      onChange={(e) => setGroupBName(e.target.value)}
+                      placeholder="e.g. Founders"
+                    />
+                  </div>
+                </div>
               )}
             </div>
 
