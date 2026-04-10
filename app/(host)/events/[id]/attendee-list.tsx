@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Users } from "lucide-react";
 import { DeleteAttendeeButton } from "./delete-attendee-button";
 
 const AVATAR_COLORS = [
@@ -46,6 +47,18 @@ export function AttendeeList({ attendees, eventId, defaultVisible = 8 }: Props) 
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? attendees : attendees.slice(0, defaultVisible);
   const hidden = attendees.length - defaultVisible;
+
+  if (attendees.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+          <Users className="h-5 w-5 text-muted-foreground" />
+        </div>
+        <p className="text-sm font-medium">No attendees yet</p>
+        <p className="text-xs text-muted-foreground mt-1">Share the attendee link to start collecting responses</p>
+      </div>
+    );
+  }
 
   return (
     <>

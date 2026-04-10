@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { events, questions } from "@/lib/db/schema";
 import { and, eq, asc } from "drizzle-orm";
+import { ArrowLeft } from "lucide-react";
 import { QuestionBuilder } from "./question-builder";
 
 interface Props {
@@ -28,12 +29,15 @@ export default async function QuestionsPage({ params, searchParams }: Props) {
   if (event.status !== "draft") {
     return (
       <div className="max-w-2xl mx-auto space-y-4">
-        <Link
-          href={`/events/${eventId}`}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ← Back to event
-        </Link>
+        <div className="mb-6">
+          <Link
+            href={`/events/${eventId}`}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to event
+          </Link>
+        </div>
         <p className="text-muted-foreground text-sm">
           Questions cannot be edited after the event is opened.
         </p>
@@ -49,13 +53,16 @@ export default async function QuestionsPage({ params, searchParams }: Props) {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="space-y-1">
+      <div className="mb-6">
         <Link
           href={`/events/${eventId}`}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          ← {event.name}
+          <ArrowLeft className="h-4 w-4" />
+          Back to event
         </Link>
+      </div>
+      <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Questions</h1>
         <p className="text-sm text-muted-foreground">
           Add 3–10 questions. Weight determines how much each question influences matching.

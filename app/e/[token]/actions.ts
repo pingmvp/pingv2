@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { events, attendees, responses, questions } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
@@ -37,7 +38,17 @@ export async function submitQuestionnaire(eventId: string, formData: FormData) {
     .from(attendees)
     .where(and(eq(attendees.eventId, eventId), eq(attendees.email, email)));
 
-  if (existing) redirect(`/e/${eventId}?error=You+have+already+submitted+a+response`);
+  if (existing) {
+    // Re-set the cookie in case they lost it, then redirect to their done page
+    const cookieStore = await cookies();
+    cookieStore.set(`ping_submission_${eventId}`, existing.token, {
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 90, // 90 days
+      path: "/",
+    });
+    redirect(`/e/${existing.token}/done`);
+  }
 
   // Load questions to parse answers correctly
   const eventQuestions = await db
@@ -76,6 +87,14 @@ export async function submitQuestionnaire(eventId: string, formData: FormData) {
       }))
     );
   }
+
+  const cookieStore = await cookies();
+  cookieStore.set(`ping_submission_${eventId}`, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 90, // 90 days
+    path: "/",
+  });
 
   redirect(`/e/${token}/done`);
 }

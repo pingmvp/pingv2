@@ -477,6 +477,7 @@ export function NewEventForm({ error }: Props) {
                       placeholder="e.g. Founders"
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">e.g. "Investors" or "Founders"</p>
                 </div>
               )}
             </div>
@@ -555,17 +556,20 @@ export function NewEventForm({ error }: Props) {
                           onClick={() => handleMoveUp(index)}
                           disabled={index === 0}
                           title="Move up"
+                          aria-label="Move question up"
                         >↑</Button>
                         <Button
                           variant="ghost" size="icon" className="h-7 w-7" type="button"
                           onClick={() => handleMoveDown(index)}
                           disabled={index === draftQuestions.length - 1}
                           title="Move down"
+                          aria-label="Move question down"
                         >↓</Button>
                         <Button
                           variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" type="button"
                           onClick={() => handleDeleteQuestion(index)}
                           title="Delete"
+                          aria-label="Delete question"
                         >×</Button>
                       </div>
                     </div>
@@ -717,6 +721,7 @@ export function NewEventForm({ error }: Props) {
                         <span>Low influence on matching</span>
                         <span>High influence on matching</span>
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">Higher weight means this question influences matches more strongly</p>
                     </div>
 
                     <Button

@@ -17,7 +17,7 @@ export function DeliverResultsButton({ eventId }: { eventId: string }) {
         if (!confirmed) e.preventDefault();
       }}
     >
-      <Button type="submit" className="gap-2">
+      <Button type="submit" size="lg" className="gap-2">
         <Send className="w-4 h-4" />
         Deliver results
       </Button>

@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { events, questions, groups } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { QuestionnaireForm } from "./questionnaire-form";
 
 interface Props {
@@ -11,6 +13,12 @@ interface Props {
 export default async function AttendeePage({ params, searchParams }: Props) {
   const { token: eventId } = await params;
   const { error } = await searchParams;
+
+  const cookieStore = await cookies();
+  const existingToken = cookieStore.get(`ping_submission_${eventId}`)?.value;
+  if (existingToken) {
+    redirect(`/e/${existingToken}/done`);
+  }
 
   const [event] = await db.select().from(events).where(eq(events.id, eventId));
 

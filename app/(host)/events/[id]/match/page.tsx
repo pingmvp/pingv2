@@ -121,14 +121,15 @@ export default async function MatchPage({ params }: Props) {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* Back */}
-      <Link
-        href={`/events/${id}`}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" />
-        {event.name}
-      </Link>
+      <div className="mb-6">
+        <Link
+          href={`/events/${id}`}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to event
+        </Link>
+      </div>
 
       {/* Header */}
       <div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Zap } from "lucide-react";
 
@@ -31,6 +32,7 @@ export function RunMatchingButton({ eventId, redirectTo, label, size = "lg" }: P
         return;
       }
 
+      toast.success("Matching complete! Review your results below.");
       if (redirectTo) {
         router.push(redirectTo);
       } else {

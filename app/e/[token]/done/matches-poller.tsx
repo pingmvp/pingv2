@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin, Zap } from "lucide-react";
+import { MapPin, Sparkles, Zap } from "lucide-react";
 
 type Match = {
   id: string;
@@ -120,6 +120,10 @@ export function MatchesPoller({ token, initial }: Props) {
                   <span className="font-semibold text-foreground">{data.eventName}</span>.
                 </p>
               )}
+              <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground animate-pulse">
+                <Sparkles className="w-4 h-4 shrink-0" />
+                <span>Our matching engine is finding your best connections&hellip;</span>
+              </div>
               <p className="text-muted-foreground leading-relaxed">
                 Your top{" "}
                 <span className="font-semibold text-foreground">

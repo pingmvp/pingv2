@@ -143,38 +143,91 @@ const QUESTION_TEMPLATES: { category: string; templates: QuestionTemplate[] }[] 
   },
 ];
 
+interface Draft {
+  text: string;
+  type: QuestionType;
+  options: string;
+  weight: number;
+  scaleMin: number;
+  scaleMax: number;
+}
+
 export function QuestionBuilder({ eventId, initialQuestions, error }: Props) {
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
-  const [type, setType] = useState<QuestionType>("single_choice");
-  const [text, setText] = useState("");
-  const [options, setOptions] = useState("");
-  const [weight, setWeight] = useState(5);
+  const [draft, setDraft] = useState<Draft | null>(
+    initialQuestions.length === 0
+      ? { text: "", type: "single_choice", options: "", weight: 5, scaleMin: 1, scaleMax: 10 }
+      : null
+  );
+  const [draftError, setDraftError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [showTemplates, setShowTemplates] = useState(questions.length === 0);
+  const [showTemplates, setShowTemplates] = useState(initialQuestions.length === 0);
 
-  const needsOptions = type === "single_choice" || type === "multiple_choice";
+  const draftNeedsOptions = draft?.type === "single_choice" || draft?.type === "multiple_choice";
 
-  function applyTemplate(template: QuestionTemplate) {
-    setText(template.text);
-    setType(template.type);
-    setOptions(template.options ?? "");
-    setWeight(template.weight);
-    setShowTemplates(false);
-    // Scroll to form
-    document.getElementById("add-question-form")?.scrollIntoView({ behavior: "smooth" });
+  function openDraft(init?: Partial<Draft>) {
+    setDraft({
+      text: "",
+      type: "single_choice",
+      options: "",
+      weight: 5,
+      scaleMin: 1,
+      scaleMax: 10,
+      ...init,
+    });
+    setDraftError(null);
   }
 
-  function handleAdd(formData: FormData) {
-    formData.set("weight", String(weight));
-    formData.set("order", String(questions.length));
+  function applyTemplate(template: QuestionTemplate) {
+    setDraft({
+      text: template.text,
+      type: template.type,
+      options: template.options ?? "",
+      weight: template.weight,
+      scaleMin: template.scaleMin ?? 1,
+      scaleMax: template.scaleMax ?? 10,
+    });
+    setDraftError(null);
+    setShowTemplates(false);
+    setTimeout(() => document.getElementById("draft-text")?.focus(), 50);
+  }
+
+  function handleSaveDraft() {
+    if (!draft) return;
+
+    if (!draft.text.trim()) {
+      setDraftError("Question text is required.");
+      document.getElementById("draft-text")?.focus();
+      return;
+    }
+
+    if (draftNeedsOptions) {
+      const opts = draft.options.split("\n").map((o) => o.trim()).filter(Boolean);
+      if (opts.length < 2) {
+        setDraftError("Add at least 2 options (one per line).");
+        document.getElementById("draft-options")?.focus();
+        return;
+      }
+    }
+
+    const fd = new FormData();
+    fd.set("text", draft.text.trim());
+    fd.set("type", draft.type);
+    fd.set("options", draft.options);
+    fd.set("weight", String(draft.weight));
+    fd.set("order", String(questions.length));
+    if (draft.type === "scale") {
+      fd.set("scaleMin", String(draft.scaleMin));
+      fd.set("scaleMax", String(draft.scaleMax));
+    }
+
     startTransition(async () => {
-      const created = await addQuestion(eventId, formData);
+      const created = await addQuestion(eventId, fd);
       if (created) {
         setQuestions((prev) => [...prev, created]);
+        setDraft(null);
+        setDraftError(null);
       }
-      setText("");
-      setOptions("");
-      setWeight(5);
     });
   }
 
@@ -260,18 +313,21 @@ export function QuestionBuilder({ eventId, initialQuestions, error }: Props) {
                       onClick={() => handleMoveUp(index)}
                       disabled={index === 0 || isPending}
                       title="Move up"
+                      aria-label="Move question up"
                     >↑</Button>
                     <Button
                       variant="ghost" size="icon" className="h-7 w-7"
                       onClick={() => handleMoveDown(index)}
                       disabled={index === questions.length - 1 || isPending}
                       title="Move down"
+                      aria-label="Move question down"
                     >↓</Button>
                     <Button
                       variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
                       onClick={() => handleDelete(q.id)}
                       disabled={isPending}
                       title="Delete"
+                      aria-label="Delete question"
                     >×</Button>
                   </div>
                 </div>
@@ -304,80 +360,89 @@ export function QuestionBuilder({ eventId, initialQuestions, error }: Props) {
         <p className="text-sm text-center text-muted-foreground">Maximum of 10 questions reached.</p>
       )}
 
-      {/* Add question section */}
-      {questions.length < 10 && (
+      {/* Draft question card — appears in the list when opened */}
+      {draft && questions.length < 10 && (
         <>
           {questions.length > 0 && <Separator />}
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">
-                {questions.length === 0 ? "Add your first question" : "Add another question"}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowTemplates((v) => !v)}
-                className="text-xs text-primary underline underline-offset-2"
-              >
-                {showTemplates ? "Hide templates" : "Browse templates"}
-              </button>
-            </div>
-
-            {/* Question templates */}
-            {showTemplates && (
-              <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
-                <p className="text-xs text-muted-foreground">
-                  Click a template to pre-fill the form below. You can edit it before adding.
+          <Card className="border-primary/40">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">
+                  {questions.length === 0 ? "Question 1" : `Question ${questions.length + 1}`}
                 </p>
-                {QUESTION_TEMPLATES.map((group) => (
-                  <div key={group.category} className="space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      {group.category}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {group.templates.map((t) => (
-                        <button
-                          key={t.text}
-                          type="button"
-                          onClick={() => applyTemplate(t)}
-                          className="text-left text-xs px-3 py-1.5 rounded-full border bg-background hover:bg-muted transition-colors"
-                        >
-                          {t.text}
-                        </button>
-                      ))}
+                <button
+                  type="button"
+                  onClick={() => setShowTemplates((v) => !v)}
+                  className="text-xs text-primary underline underline-offset-2"
+                >
+                  {showTemplates ? "Hide templates" : "Browse templates"}
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Templates */}
+              {showTemplates && (
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                  <p className="text-xs text-muted-foreground">
+                    Click a template to pre-fill. You can edit before saving.
+                  </p>
+                  {QUESTION_TEMPLATES.map((group) => (
+                    <div key={group.category} className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {group.category}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {group.templates.map((t) => (
+                          <button
+                            key={t.text}
+                            type="button"
+                            onClick={() => applyTemplate(t)}
+                            className="text-left text-xs px-3 py-1.5 rounded-full border bg-background hover:bg-muted transition-colors"
+                          >
+                            {t.text}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
 
-            {error && (
-              <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {decodeURIComponent(error)}
-              </div>
-            )}
+              {error && (
+                <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {decodeURIComponent(error)}
+                </div>
+              )}
 
-            <form id="add-question-form" action={handleAdd} className="space-y-4">
+              {/* Question text */}
               <div className="space-y-2">
-                <Label htmlFor="text">Question</Label>
+                <Label htmlFor="draft-text">
+                  Question <span className="text-destructive">*</span>
+                </Label>
                 <Input
-                  id="text"
-                  name="text"
+                  id="draft-text"
                   placeholder="What industry are you in?"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  required
+                  value={draft.text}
+                  onChange={(e) => {
+                    setDraft((d) => d && { ...d, text: e.target.value });
+                    setDraftError(null);
+                  }}
+                  autoFocus
                 />
               </div>
 
+              {/* Answer type */}
               <div className="space-y-2">
-                <Label htmlFor="type">Answer type</Label>
+                <Label>Answer type</Label>
                 <Select
-                  name="type"
-                  value={type}
-                  onValueChange={(v) => setType(v as QuestionType)}
+                  value={draft.type}
+                  onValueChange={(v) => {
+                    setDraft((d) => d && { ...d, type: v as QuestionType });
+                    setDraftError(null);
+                  }}
                 >
-                  <SelectTrigger id="type">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -388,46 +453,62 @@ export function QuestionBuilder({ eventId, initialQuestions, error }: Props) {
                 </Select>
               </div>
 
-              {needsOptions && (
+              {/* Options */}
+              {draftNeedsOptions && (
                 <div className="space-y-2">
-                  <Label htmlFor="options">
-                    Options{" "}
+                  <Label htmlFor="draft-options">
+                    Options <span className="text-destructive">*</span>{" "}
                     <span className="text-muted-foreground font-normal">(one per line, min 2)</span>
                   </Label>
                   <Textarea
-                    id="options"
-                    name="options"
+                    id="draft-options"
                     placeholder={"Investor\nFounder\nOperator\nAdvisor"}
                     rows={4}
-                    value={options}
-                    onChange={(e) => setOptions(e.target.value)}
-                    required
+                    value={draft.options}
+                    onChange={(e) => {
+                      setDraft((d) => d && { ...d, options: e.target.value });
+                      setDraftError(null);
+                    }}
                   />
                 </div>
               )}
 
-              {type === "scale" && (
+              {/* Scale range */}
+              {draft.type === "scale" && (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="scaleMin">Min value</Label>
-                    <Input id="scaleMin" name="scaleMin" type="number" defaultValue={1} min={0} max={9} />
+                    <Label htmlFor="draft-scaleMin">Min value</Label>
+                    <Input
+                      id="draft-scaleMin"
+                      type="number"
+                      value={draft.scaleMin}
+                      min={0} max={9}
+                      onChange={(e) => setDraft((d) => d && { ...d, scaleMin: Number(e.target.value) })}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="scaleMax">Max value</Label>
-                    <Input id="scaleMax" name="scaleMax" type="number" defaultValue={10} min={1} max={100} />
+                    <Label htmlFor="draft-scaleMax">Max value</Label>
+                    <Input
+                      id="draft-scaleMax"
+                      type="number"
+                      value={draft.scaleMax}
+                      min={1} max={100}
+                      onChange={(e) => setDraft((d) => d && { ...d, scaleMax: Number(e.target.value) })}
+                    />
                   </div>
                 </div>
               )}
 
+              {/* Weight */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Matching weight</Label>
-                  <span className="text-sm font-medium">{weight} / 10</span>
+                  <span className="text-sm font-medium">{draft.weight} / 10</span>
                 </div>
                 <Slider
                   min={1} max={10} step={1}
-                  value={[weight]}
-                  onValueChange={([val]) => setWeight(val)}
+                  value={[draft.weight]}
+                  onValueChange={([val]) => setDraft((d) => d && { ...d, weight: val })}
                   className="w-full"
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
@@ -436,15 +517,54 @@ export function QuestionBuilder({ eventId, initialQuestions, error }: Props) {
                 </div>
               </div>
 
-              <Button type="submit" disabled={isPending} className="w-full">
-                {isPending ? "Saving…" : "+ Add question"}
-              </Button>
-            </form>
-          </div>
+              {/* Validation error */}
+              {draftError && (
+                <p className="text-sm text-destructive">{draftError}</p>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                {questions.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => { setDraft(null); setDraftError(null); }}
+                    disabled={isPending}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={isPending}
+                  className="flex-1"
+                >
+                  {isPending ? "Saving…" : "Save question"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
 
-      {questions.length >= 3 && (
+      {/* Add another question button */}
+      {!draft && questions.length < 10 && (
+        <>
+          {questions.length > 0 && <Separator />}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => openDraft()}
+            className="w-full"
+          >
+            + Add another question
+          </Button>
+        </>
+      )}
+
+      {questions.length >= 3 && !draft && (
         <p className="text-sm text-center text-muted-foreground">
           ✓ You have enough questions.{" "}
           <a href={`/events/${eventId}`} className="underline underline-offset-2 text-foreground">

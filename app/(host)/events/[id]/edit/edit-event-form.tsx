@@ -152,6 +152,7 @@ export function EditEventForm({ event, error }: Props) {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-1">How many people each attendee will be matched with</p>
             </div>
           </CardContent>
         </Card>

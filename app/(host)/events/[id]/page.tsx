@@ -127,10 +127,10 @@ function timeAgo(date: Date): string {
 }
 
 function scoreLabel(score: number): { label: string; color: string; bar: string } {
-  if (score >= 0.8) return { label: "Excellent", color: "text-emerald-700", bar: "bg-emerald-500" };
-  if (score >= 0.6) return { label: "Good", color: "text-blue-700", bar: "bg-blue-500" };
-  if (score >= 0.4) return { label: "Fair", color: "text-amber-700", bar: "bg-amber-500" };
-  return { label: "Low", color: "text-slate-500", bar: "bg-slate-400" };
+  if (score >= 0.8) return { label: "Strong match", color: "text-emerald-600", bar: "bg-emerald-500" };
+  if (score >= 0.6) return { label: "Good match", color: "text-blue-600", bar: "bg-blue-500" };
+  if (score >= 0.4) return { label: "Compatible", color: "text-amber-600", bar: "bg-amber-500" };
+  return { label: "Partial match", color: "text-muted-foreground", bar: "bg-slate-400" };
 }
 
 function Avatar({ name }: { name: string }) {
@@ -265,20 +265,20 @@ export default async function EventDetailPage({ params }: Props) {
             )}
             {event.status === "draft" && (
               <form action={openEvent.bind(null, id)}>
-                <Button type="submit" disabled={questionCount < 3}>
+                <Button type="submit" size="lg" disabled={questionCount < 3}>
                   Open event
                 </Button>
               </form>
             )}
             {event.status === "open" && (
               <form action={closeEvent.bind(null, id)}>
-                <Button type="submit" variant="secondary">
+                <Button type="submit" size="lg" variant="secondary">
                   Close responses
                 </Button>
               </form>
             )}
             {event.status === "closed" && (
-              <RunMatchingButton eventId={id} label="Run matching →" size="sm" />
+              <RunMatchingButton eventId={id} label="Run matching →" size="lg" />
             )}
             {event.status === "matched" && (
               <DeliverResultsButton eventId={id} />
