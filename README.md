@@ -32,6 +32,15 @@ Togly is a B2B SaaS tool sold to event hosts. Attendees fill out a short questio
 
 ## Local setup
 
+The fastest path is the setup script — it checks your Node version, installs deps, creates `.env.local`, and pushes the DB schema in one shot:
+
+```bash
+cd web
+bash scripts/setup.sh
+```
+
+Or manually:
+
 ```bash
 # 1. Install dependencies
 npm install
