@@ -15,7 +15,7 @@ export default async function AttendeePage({ params, searchParams }: Props) {
   const { error } = await searchParams;
 
   const cookieStore = await cookies();
-  const existingToken = cookieStore.get(`ping_submission_${eventId}`)?.value;
+  const existingToken = cookieStore.get(`togly_submission_${eventId}`)?.value;
   if (existingToken) {
     redirect(`/e/${existingToken}/done`);
   }

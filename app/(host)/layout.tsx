@@ -23,7 +23,7 @@ export default async function HostLayout({
               <div className="w-7 h-7 rounded-lg bg-foreground flex items-center justify-center">
                 <Zap className="w-4 h-4 text-background" strokeWidth={2.5} />
               </div>
-              <span className="font-bold tracking-tight">Ping</span>
+              <span className="font-bold tracking-tight">Togly</span>
             </Link>
             <nav>
               <Link

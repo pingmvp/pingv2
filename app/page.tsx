@@ -31,7 +31,7 @@ export default async function LandingPage() {
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
               <Zap className="w-4 h-4 text-primary-foreground" strokeWidth={2.5} />
             </div>
-            <span className="font-bold tracking-tight text-white">Ping</span>
+            <span className="font-bold tracking-tight text-white">Togly</span>
           </div>
           <Link href="/login">
             <Button
@@ -70,7 +70,7 @@ export default async function LandingPage() {
             </h1>
 
             <p className="text-lg text-white/55 leading-relaxed max-w-lg">
-              Ping lets event hosts create a custom questionnaire, collect
+              Togly lets event hosts create a custom questionnaire, collect
               responses, and run a compatibility matching engine — all from one
               dashboard. Attendees just need a link.
             </p>
@@ -238,9 +238,9 @@ export default async function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between text-xs text-white/30">
           <div className="flex items-center gap-1.5">
             <Zap className="w-3 h-3" />
-            <span className="font-semibold">Ping</span>
+            <span className="font-semibold">Togly</span>
           </div>
-          <span>© {new Date().getFullYear()} Ping. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} Togly. All rights reserved.</span>
         </div>
       </footer>
     </div>

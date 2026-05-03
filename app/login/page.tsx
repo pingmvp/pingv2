@@ -19,7 +19,7 @@ export default async function LoginPage({ searchParams }: Props) {
       <div className="w-full max-w-sm space-y-8">
         {/* Logo / heading */}
         <div className="text-center space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Ping</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Togly</h1>
           <p className="text-sm text-muted-foreground">
             Sign in to manage your events
           </p>

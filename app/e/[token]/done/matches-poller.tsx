@@ -54,7 +54,7 @@ export function MatchesPoller({ token, initial }: Props) {
         <div className="w-6 h-6 rounded-md bg-foreground flex items-center justify-center">
           <Zap className="w-3.5 h-3.5 text-background" strokeWidth={2.5} />
         </div>
-        <span className="text-sm font-bold tracking-tight">Ping</span>
+        <span className="text-sm font-bold tracking-tight">Togly</span>
       </div>
 
       <div className="w-full max-w-sm space-y-8">

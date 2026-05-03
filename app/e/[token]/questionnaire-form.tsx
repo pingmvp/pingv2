@@ -180,7 +180,7 @@ export function QuestionnaireForm({ eventId, event, questions, groups, serverErr
           <div className="w-6 h-6 rounded-md bg-foreground flex items-center justify-center">
             <Zap className="w-3.5 h-3.5 text-background" strokeWidth={2.5} />
           </div>
-          <span className="text-sm font-bold tracking-tight">Ping</span>
+          <span className="text-sm font-bold tracking-tight">Togly</span>
         </div>
         {step > 0 && step < readyStep && (
           <span className="text-xs tabular-nums text-muted-foreground">

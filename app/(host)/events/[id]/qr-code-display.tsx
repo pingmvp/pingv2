@@ -13,7 +13,7 @@ export function QRCodeDisplay({ url }: Props) {
   const [downloaded, setDownloaded] = useState(false);
 
   function handleDownload() {
-    const svg = document.getElementById("ping-qr-svg")?.querySelector("svg");
+    const svg = document.getElementById("togly-qr-svg")?.querySelector("svg");
     if (!svg) return;
 
     const svgData = new XMLSerializer().serializeToString(svg);
@@ -22,7 +22,7 @@ export function QRCodeDisplay({ url }: Props) {
 
     const link = document.createElement("a");
     link.href = objectUrl;
-    link.download = "ping-attendee-qr.svg";
+    link.download = "togly-attendee-qr.svg";
     link.click();
     URL.revokeObjectURL(objectUrl);
 
@@ -34,7 +34,7 @@ export function QRCodeDisplay({ url }: Props) {
     <div className="flex items-start gap-5">
       {/* QR code */}
       <div
-        id="ping-qr-svg"
+        id="togly-qr-svg"
         className="shrink-0 bg-white p-3 rounded-xl border shadow-sm"
       >
         <QRCode value={url} size={120} />
