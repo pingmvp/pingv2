@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import LiveFeed from "./live-feed";
 import HowItWorksSection from "./how-it-works-section";
+import LandingHeader from "./landing-header";
+import AboutSection from "./about-section";
+import ContactSection from "./contact-section";
 
 export default async function LandingPage() {
   const supabase = await createClient();
@@ -25,24 +28,7 @@ export default async function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-slate-950/80 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <Zap className="w-4 h-4 text-primary-foreground" strokeWidth={2.5} />
-            </div>
-            <span className="font-bold tracking-tight text-white">Togly</span>
-          </div>
-          <Link href="/login">
-            <Button
-              size="sm"
-              className="border border-white/20 text-white/80 hover:text-white hover:bg-white/10 bg-transparent shadow-none"
-            >
-              Sign in
-            </Button>
-          </Link>
-        </div>
-      </header>
+      <LandingHeader />
 
       <section className="relative bg-slate-950 overflow-hidden pt-14">
         <div
@@ -118,9 +104,11 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <HowItWorksSection />
+      <div id="how-it-works">
+        <HowItWorksSection />
+      </div>
 
-      <section className="bg-muted/30 border-y">
+      <section id="features" className="bg-muted/30 border-y">
         <div className="max-w-6xl mx-auto px-6 py-24 space-y-12">
           <div className="text-center space-y-3">
             <p className="text-xs font-semibold uppercase tracking-widest text-primary">Features</p>
@@ -202,6 +190,10 @@ export default async function LandingPage() {
           </div>
         </div>
       </section>
+
+      <AboutSection />
+
+      <ContactSection />
 
       <section className="relative bg-slate-950 overflow-hidden">
         <div
