@@ -276,6 +276,61 @@ export async function archiveEvent(eventId: string) {
   revalidatePath("/dashboard");
 }
 
+export async function archiveEvents(eventIds: string[]) {
+  if (eventIds.length === 0) return;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Verify ownership of all events
+  const ownedEvents = await db
+    .select({ id: events.id })
+    .from(events)
+    .where(and(inArray(events.id, eventIds), eq(events.hostId, user.id)));
+
+  const ownedIds = ownedEvents.map((e) => e.id);
+  if (ownedIds.length === 0) return;
+
+  const eventAttendees = await db
+    .select({ id: attendees.id })
+    .from(attendees)
+    .where(inArray(attendees.eventId, ownedIds));
+
+  if (eventAttendees.length > 0) {
+    const attendeeIds = eventAttendees.map((a) => a.id);
+    await db.delete(responses).where(inArray(responses.attendeeId, attendeeIds));
+    await db.update(attendees).set({ email: sql`NULL` }).where(inArray(attendees.id, attendeeIds));
+  }
+
+  await db
+    .update(events)
+    .set({ status: "archived", updatedAt: new Date() })
+    .where(inArray(events.id, ownedIds));
+
+  revalidatePath("/dashboard");
+}
+
+export async function deleteEvents(eventIds: string[]) {
+  if (eventIds.length === 0) return;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Verify ownership before deleting
+  const ownedEvents = await db
+    .select({ id: events.id })
+    .from(events)
+    .where(and(inArray(events.id, eventIds), eq(events.hostId, user.id)));
+
+  const ownedIds = ownedEvents.map((e) => e.id);
+  if (ownedIds.length === 0) return;
+
+  // DB cascades handle all related rows (groups, questions, attendees, responses, matches, feedback)
+  await db.delete(events).where(inArray(events.id, ownedIds));
+
+  revalidatePath("/dashboard");
+}
+
 export async function deleteAttendee(attendeeId: string, eventId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
