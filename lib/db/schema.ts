@@ -154,6 +154,27 @@ export const feedback = pgTable("feedback", {
     .defaultNow(),
 });
 
+// ── Survey Responses ──────────────────────────────────────────────────────────
+
+export const surveyResponses = pgTable("survey_responses", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // unique: one survey submission per attendee
+  attendeeId: uuid("attendee_id")
+    .notNull()
+    .unique()
+    .references(() => attendees.id, { onDelete: "cascade" }),
+  eventId: uuid("event_id")
+    .notNull()
+    .references(() => events.id, { onDelete: "cascade" }),
+  easeOfNavigation: integer("ease_of_navigation").notNull(), // 1–5
+  matchAccess: text("match_access").notNull(),               // 'yes' | 'no' | 'other'
+  matchAccessOther: text("match_access_other"),              // free text when matchAccess = 'other'
+  matchAlignment: integer("match_alignment").notNull(),      // 1–5
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 // ── Relations ─────────────────────────────────────────────────────────────────
 
 export const eventsRelations = relations(events, ({ many }) => ({
@@ -161,6 +182,7 @@ export const eventsRelations = relations(events, ({ many }) => ({
   attendees: many(attendees),
   matches: many(matches),
   groups: many(groups),
+  surveyResponses: many(surveyResponses),
 }));
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
@@ -177,6 +199,10 @@ export const attendeesRelations = relations(attendees, ({ one, many }) => ({
   event: one(events, { fields: [attendees.eventId], references: [events.id] }),
   group: one(groups, { fields: [attendees.groupId], references: [groups.id] }),
   responses: many(responses),
+  surveyResponse: one(surveyResponses, {
+    fields: [attendees.id],
+    references: [surveyResponses.attendeeId],
+  }),
 }));
 
 export const responsesRelations = relations(responses, ({ one }) => ({
@@ -208,5 +234,16 @@ export const feedbackRelations = relations(feedback, ({ one }) => ({
   attendee: one(attendees, {
     fields: [feedback.attendeeId],
     references: [attendees.id],
+  }),
+}));
+
+export const surveyResponsesRelations = relations(surveyResponses, ({ one }) => ({
+  attendee: one(attendees, {
+    fields: [surveyResponses.attendeeId],
+    references: [attendees.id],
+  }),
+  event: one(events, {
+    fields: [surveyResponses.eventId],
+    references: [events.id],
   }),
 }));
