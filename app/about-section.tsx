@@ -1,3 +1,5 @@
+"use client";
+
 import { ExternalLink } from "lucide-react";
 
 const team = [
@@ -23,45 +25,62 @@ const team = [
 
 export default function AboutSection() {
   return (
-    <section id="about" className="bg-slate-950 border-y border-white/10">
-      <div className="max-w-6xl mx-auto px-6 py-24 space-y-16">
-        {/* Header */}
+    <section id="about" className="border-y border-black/8 bg-background">
+      <div className="max-w-6xl mx-auto px-8 py-24 space-y-16">
         <div className="space-y-4 max-w-xl">
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary">Team</p>
-          <h2 className="text-4xl font-extrabold tracking-tight text-white leading-tight">
+          {/* Accent eyebrow */}
+          <p className="text-[12px] font-bold uppercase tracking-[0.1em]" style={{ color: "var(--color-accent-on-light)" }}>
+            Team
+          </p>
+          <h2
+            className="text-[44px] tracking-[-0.02em] text-foreground leading-tight"
+            style={{ fontWeight: "var(--font-weight-hero)" }}
+          >
             Built by people who&apos;ve been in the room.
           </h2>
-          <p className="text-white/45 text-lg leading-relaxed">
+          <p className="text-[18px] text-muted-foreground leading-relaxed">
             Togly started with a simple frustration: why do so many networking events feel like a
-            waste of time? We believe in-person connection is irreplaceable — it just needs a
-            smarter layer on top.
+            waste of time? We believe in-person connection is irreplaceable — it just needs a smarter layer on top.
           </p>
         </div>
 
-        {/* Team cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-white/[0.07] rounded-2xl overflow-hidden">
+        {/* Team cards — dark navy */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {team.map((member) => (
-            <div key={member.name} className="bg-slate-950 p-10 space-y-5">
-              {/* Avatar */}
-              <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-                <span className="text-lg font-bold text-white/70">{member.initials}</span>
+            <div
+              key={member.name}
+              className="rounded-2xl p-8 space-y-5"
+              style={{
+                background: "var(--color-navy)",
+                border: "1px solid var(--color-navy-mid)",
+              }}
+            >
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
+              >
+                <span className="text-lg font-bold" style={{ color: "rgba(255,255,255,0.65)" }}>
+                  {member.initials}
+                </span>
               </div>
-
               <div className="space-y-1">
-                <h3 className="text-lg font-bold text-white tracking-tight">{member.name}</h3>
-                <p className="text-sm text-primary">{member.title}</p>
-                <p className="text-xs text-white/35">
+                <h3 className="text-[18px] font-semibold text-white">{member.name}</h3>
+                <p className="text-sm font-medium" style={{ color: "var(--color-accent)" }}>{member.title}</p>
+                <p className="text-xs" style={{ color: "rgba(255,255,255,0.38)" }}>
                   {member.school} · {member.major}
                 </p>
               </div>
-
-              <p className="text-sm text-white/55 leading-relaxed">{member.bio}</p>
-
+              <p className="text-[15px] leading-relaxed" style={{ color: "rgba(255,255,255,0.58)" }}>
+                {member.bio}
+              </p>
               <a
                 href={member.linkedin}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-white/35 hover:text-white/70 transition-colors duration-150"
+                className="inline-flex items-center gap-1.5 text-xs font-medium transition-colors duration-150"
+                style={{ color: "rgba(255,255,255,0.38)" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.75)")}
+                onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.38)")}
               >
                 <ExternalLink className="w-3 h-3" />
                 LinkedIn

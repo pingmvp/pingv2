@@ -3,59 +3,105 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
-const navLinks = [
-  { label: "How It Works", href: "#how-it-works" },
-  { label: "Features", href: "#features" },
-  { label: "About", href: "#about" },
-  { label: "Contact", href: "#contact" },
+const NAV_LINKS = [
+  { label: "How it works", href: "#how-it-works", sectionId: "how-it-works" },
+  { label: "Features",     href: "#features",     sectionId: "features"     },
+  { label: "Team",         href: "#about",        sectionId: "about"        },
+  { label: "Contact",      href: "#contact",      sectionId: "contact"      },
 ];
 
 export default function LandingHeader() {
-  const [scrolled, setScrolled] = useState(false);
+  const [scrolled,       setScrolled]       = useState(false);
+  const [activeSection,  setActiveSection]  = useState("");
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 10);
+    const onScroll = () => {
+      setScrolled(window.scrollY > 20);
+
+      // Active section: whichever section's top has passed 55% of viewport height
+      const mid = window.innerHeight * 0.55;
+      let current = "";
+      for (const link of NAV_LINKS) {
+        const el = document.getElementById(link.sectionId);
+        if (!el) continue;
+        if (el.getBoundingClientRect().top <= mid) current = link.sectionId;
+      }
+      setActiveSection(current);
+    };
+
     window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
-        scrolled
-          ? "border-b border-white/10 bg-slate-950/90 backdrop-blur-md"
-          : "border-b border-transparent bg-slate-950/80 backdrop-blur-md"
-      }`}
+      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+      style={{
+        background: "var(--color-cream)",
+        borderBottom: `1px solid rgba(10,22,40,${scrolled ? "0.10" : "0.05"})`,
+        boxShadow: scrolled ? "0 1px 8px rgba(10,22,40,0.06)" : "none",
+      }}
     >
-      <div className="max-w-6xl mx-auto px-6 h-14 flex items-center gap-8">
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-            <Zap className="w-4 h-4 text-primary-foreground" strokeWidth={2.5} />
-          </div>
-          <span className="font-bold tracking-tight text-white">Togly</span>
-        </div>
+      {/* Slightly taller bar */}
+      <div className="max-w-7xl mx-auto px-8 h-[78px] flex items-center justify-between">
 
-        <nav className="flex items-center gap-6">
-          {navLinks.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              className="text-sm text-white/50 hover:text-white transition-colors duration-150"
-            >
-              {link.label}
-            </a>
-          ))}
+        {/* ── Logo ── */}
+        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+          <div
+            className="rounded-lg flex items-center justify-center"
+            style={{ width: 32, height: 32, background: "var(--color-navy)" }}
+          >
+            <Zap style={{ width: 17, height: 17, color: "white" }} strokeWidth={2.5} />
+          </div>
+          <span className="font-bold tracking-tight" style={{ fontSize: 16, color: "var(--color-navy)" }}>
+            Togly
+          </span>
+        </Link>
+
+        {/* ── Nav links ── */}
+        <nav className="hidden md:flex items-center" style={{ gap: 36 }}>
+          {NAV_LINKS.map(link => {
+            const active = activeSection === link.sectionId;
+            return (
+              <a
+                key={link.label}
+                href={link.href}
+                className="font-medium no-underline transition-colors duration-150"
+                style={{
+                  fontSize: 15,
+                  color: "var(--color-navy)",
+                  opacity: active ? 1 : 0.48,
+                  textDecoration: "none",
+                  paddingBottom: 3,
+                  borderBottom: active
+                    ? "2px solid var(--color-accent-on-light)"
+                    : "2px solid transparent",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+                onMouseLeave={e => (e.currentTarget.style.opacity = active ? "1" : "0.48")}
+              >
+                {link.label}
+              </a>
+            );
+          })}
         </nav>
 
-        <Link href="/login" className="ml-auto">
-          <Button
-            size="sm"
-            className="border border-white/20 text-white/80 hover:text-white hover:bg-white/10 bg-transparent shadow-none"
+        {/* ── Sign in ── */}
+        <Link href="/login" className="shrink-0">
+          <button
+            className="rounded-full font-semibold transition-all duration-150"
+            style={{
+              height: 38, paddingLeft: 20, paddingRight: 20, fontSize: 14,
+              background: "var(--color-navy)",
+              color: "white",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = "0.78")}
+            onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
           >
             Sign in
-          </Button>
+          </button>
         </Link>
       </div>
     </header>

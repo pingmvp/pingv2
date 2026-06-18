@@ -80,14 +80,12 @@ export default function HowItWorksSection() {
 
   return (
     <section className="max-w-6xl mx-auto px-6 py-24">
-      <div className="text-center space-y-3 mb-16">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+      <div className="space-y-3 mb-16">
+        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--color-accent-on-light)" }}>
           How it works
         </p>
-        <h2 className="text-4xl font-extrabold tracking-tight">
-          From link to matched pairs
-          <br />
-          in minutes
+        <h2 className="text-[42px] tracking-tight" style={{ fontWeight: "var(--font-weight-hero)" }}>
+          From link to matched pairs in minutes
         </h2>
       </div>
 
@@ -99,29 +97,25 @@ export default function HowItWorksSection() {
               key={step.num}
               onClick={() => goTo(i)}
               className={`w-full text-left flex gap-4 p-5 rounded-2xl border transition-all duration-300 ${
-                phase === i
-                  ? "border-primary/30 bg-primary/5 shadow-sm"
-                  : "border-transparent hover:border-border hover:bg-muted/40"
+                phase === i ? "shadow-lg" : "opacity-60 hover:opacity-80"
               }`}
+              style={{
+                background: "var(--color-navy)",
+                borderColor: phase === i ? "rgba(74,222,128,0.35)" : "var(--color-navy-mid)",
+              }}
             >
               <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300 ${
-                  phase === i
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
-                }`}
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300"
+                style={{
+                  background: phase === i ? "var(--color-accent)" : "rgba(255,255,255,0.10)",
+                  color:      phase === i ? "var(--color-navy)"  : "rgba(255,255,255,0.55)",
+                }}
               >
                 <span className="text-sm font-black">{step.num}</span>
               </div>
               <div className="space-y-1 min-w-0">
-                <p
-                  className={`font-semibold transition-colors duration-300 ${
-                    phase === i ? "text-foreground" : "text-muted-foreground"
-                  }`}
-                >
-                  {step.title}
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <p className="font-semibold text-white">{step.title}</p>
+                <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
                   {step.desc}
                 </p>
               </div>
@@ -134,7 +128,7 @@ export default function HowItWorksSection() {
           <div className="w-full max-w-[320px]">
             <div className="rounded-[2.5rem] border-4 border-foreground/10 bg-card shadow-2xl overflow-hidden">
               {/* Status bar */}
-              <div className="bg-slate-950 px-6 pt-3 pb-2 flex items-center justify-between">
+              <div className="px-6 pt-3 pb-2 flex items-center justify-between" style={{ background: "var(--color-navy)" }}>
                 <span className="text-[10px] text-white/40 font-medium">9:41</span>
                 <div className="flex gap-1 items-center">
                   <div className="w-3 h-1.5 rounded-sm bg-white/30" />
@@ -162,9 +156,8 @@ export default function HowItWorksSection() {
                 <button
                   key={i}
                   onClick={() => goTo(i)}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    phase === i ? "bg-primary w-6" : "bg-muted-foreground/30 w-1.5"
-                  }`}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${phase === i ? "w-6" : "w-1.5"}`}
+                  style={{ background: phase === i ? "var(--color-accent)" : "rgba(10,22,40,0.20)" }}
                 />
               ))}
             </div>

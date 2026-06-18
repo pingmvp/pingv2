@@ -50,44 +50,44 @@ const STATUS_META: Record<string, {
   draft: {
     label: "Draft",
     hint: "Add at least 3 questions, then open the event.",
-    badgeBg: "bg-slate-100 text-slate-600",
-    dot: "bg-slate-400",
-    stepActive: "bg-slate-700 border-slate-700 ring-slate-200",
+    badgeBg: "bg-gray-100 text-gray-600 border border-gray-200",
+    dot: "bg-gray-400",
+    stepActive: "bg-gray-600 border-gray-600 ring-gray-200",
   },
   open: {
     label: "Open",
     hint: "Collecting responses. Share the attendee link.",
-    badgeBg: "bg-emerald-50 text-emerald-700",
+    badgeBg: "bg-emerald-50 text-emerald-700 border border-emerald-200",
     dot: "bg-emerald-500 animate-pulse",
     stepActive: "bg-emerald-500 border-emerald-500 ring-emerald-200",
   },
   closed: {
     label: "Closed",
     hint: "Responses closed. Ready to run matching.",
-    badgeBg: "bg-blue-50 text-blue-700",
+    badgeBg: "bg-blue-50 text-blue-700 border border-blue-200",
     dot: "bg-blue-500",
     stepActive: "bg-blue-500 border-blue-500 ring-blue-200",
   },
   matched: {
     label: "Matched",
     hint: "Matches generated. Deliver results to attendees.",
-    badgeBg: "bg-violet-50 text-violet-700",
+    badgeBg: "bg-violet-50 text-violet-700 border border-violet-200",
     dot: "bg-violet-500",
     stepActive: "bg-violet-500 border-violet-500 ring-violet-200",
   },
   delivered: {
     label: "Delivered",
     hint: "All done — matches sent to attendees.",
-    badgeBg: "bg-teal-50 text-teal-700",
+    badgeBg: "bg-teal-50 text-teal-700 border border-teal-200",
     dot: "bg-teal-500",
     stepActive: "bg-teal-500 border-teal-500 ring-teal-200",
   },
   archived: {
     label: "Archived",
     hint: "Event archived. Responses and email addresses have been deleted.",
-    badgeBg: "bg-slate-100 text-slate-500",
-    dot: "bg-slate-400",
-    stepActive: "bg-slate-400 border-slate-400 ring-slate-200",
+    badgeBg: "bg-gray-50 text-gray-400 border border-gray-200",
+    dot: "bg-gray-300",
+    stepActive: "bg-gray-300 border-gray-300 ring-gray-100",
   },
 };
 
@@ -102,7 +102,7 @@ const QUESTION_TYPE_LABELS: Record<string, string> = {
 const AVATAR_COLORS = [
   "bg-violet-100 text-violet-700",
   "bg-emerald-100 text-emerald-700",
-  "bg-sky-100 text-sky-700",
+  "bg-sky-50 text-sky-700",
   "bg-amber-100 text-amber-700",
   "bg-rose-100 text-rose-700",
   "bg-orange-100 text-orange-700",
@@ -129,7 +129,7 @@ function timeAgo(date: Date): string {
 function scoreLabel(score: number): { label: string; color: string; bar: string } {
   if (score >= 0.8) return { label: "Strong match", color: "text-emerald-600", bar: "bg-emerald-500" };
   if (score >= 0.6) return { label: "Good match", color: "text-blue-600", bar: "bg-blue-500" };
-  if (score >= 0.4) return { label: "Compatible", color: "text-amber-600", bar: "bg-amber-500" };
+  if (score >= 0.4) return { label: "Compatible", color: "text-amber-700", bar: "bg-amber-500" };
   return { label: "Partial match", color: "text-muted-foreground", bar: "bg-slate-400" };
 }
 
@@ -221,7 +221,7 @@ export default async function EventDetailPage({ params }: Props) {
       </Link>
 
       {/* ── Hero card ─────────────────────────────────────────── */}
-      <div className="rounded-xl border bg-gradient-to-br from-slate-50 to-white p-6 space-y-5">
+      <div className="rounded-2xl border border-black/8 bg-card p-6 space-y-5" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04)" }}>
         {/* Top row: name + actions */}
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2 min-w-0">
@@ -291,8 +291,8 @@ export default async function EventDetailPage({ params }: Props) {
 
         {/* Archived notice */}
         {isArchived && (
-          <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600 space-y-1">
-            <p className="font-semibold text-slate-700">This event has been archived.</p>
+          <div className="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-muted-foreground space-y-1">
+            <p className="font-semibold text-foreground">This event has been archived.</p>
             <p>Questionnaire responses and attendee email addresses have been permanently deleted. Attendee names and match scores are retained.</p>
           </div>
         )}
@@ -460,7 +460,7 @@ export default async function EventDetailPage({ params }: Props) {
 
       {/* ── Dev seed panel ─────────────────────────────────────── */}
       {process.env.NODE_ENV === "development" && event.status === "open" && (
-        <Card className="border-dashed border-amber-300 bg-amber-50/40">
+        <Card className="border-dashed border-amber-200 bg-amber-50/40">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
@@ -480,9 +480,9 @@ export default async function EventDetailPage({ params }: Props) {
                 min={1}
                 max={50}
                 defaultValue={10}
-                className="w-20 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-20 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-amber-300"
               />
-              <Button type="submit" size="sm" variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-100">
+              <Button type="submit" size="sm" variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-50">
                 Seed attendees
               </Button>
             </form>
@@ -681,7 +681,7 @@ export default async function EventDetailPage({ params }: Props) {
                     />
                     <Button type="submit" size="sm">Create groups</Button>
                   </div>
-                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                     Groups must be set up before you open the event.
                   </p>
                 </form>
@@ -700,7 +700,7 @@ export default async function EventDetailPage({ params }: Props) {
                   w >= 7
                     ? { icon: <ArrowUp className="w-3 h-3" />, cls: "text-emerald-600 bg-emerald-50" }
                     : w >= 4
-                    ? { icon: <Minus className="w-3 h-3" />, cls: "text-sky-600 bg-sky-50" }
+                    ? { icon: <Minus className="w-3 h-3" />, cls: "text-sky-400 bg-sky-500/15" }
                     : { icon: <ArrowDown className="w-3 h-3" />, cls: "text-red-400 bg-red-50" };
 
                 return (
@@ -737,7 +737,7 @@ export default async function EventDetailPage({ params }: Props) {
           )}
 
           {event.status === "draft" && questionCount > 0 && questionCount < 3 && (
-            <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5">
               <p className="text-xs text-amber-700 font-medium">
                 {3 - questionCount} more {3 - questionCount === 1 ? "question" : "questions"} needed to open.
               </p>
